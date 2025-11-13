@@ -1,0 +1,13 @@
+# List all modules with their descriptions
+# Usage: graphfs query --file .graphfs/queries/list-modules.sparql
+
+PREFIX code: <https://schema.codedoc.org/>
+
+SELECT ?module ?name ?description ?language
+WHERE {
+  ?module a code:Module ;
+          code:name ?name ;
+          code:description ?description ;
+          code:language ?language .
+}
+ORDER BY ?name
