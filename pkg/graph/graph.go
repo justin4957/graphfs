@@ -40,20 +40,20 @@ import (
 
 // Graph represents a codebase knowledge graph
 type Graph struct {
-	Store      *store.TripleStore    // Triple store containing all RDF triples
-	Root       string                // Root directory path
-	Modules    map[string]*Module    // Modules indexed by path
-	Statistics GraphStats            // Graph statistics
+	Store      *store.TripleStore // Triple store containing all RDF triples
+	Root       string             // Root directory path
+	Modules    map[string]*Module // Modules indexed by path
+	Statistics GraphStats         // Graph statistics
 }
 
 // GraphStats provides statistics about the knowledge graph
 type GraphStats struct {
-	TotalModules       int               // Total number of modules
-	TotalTriples       int               // Total number of RDF triples
-	TotalRelationships int               // Total number of relationships (linksTo, calls, etc.)
-	ModulesByLanguage  map[string]int    // Modules grouped by language
-	ModulesByLayer     map[string]int    // Modules grouped by layer
-	BuildDuration      time.Duration     // Time taken to build graph
+	TotalModules       int            // Total number of modules
+	TotalTriples       int            // Total number of RDF triples
+	TotalRelationships int            // Total number of relationships (linksTo, calls, etc.)
+	ModulesByLanguage  map[string]int // Modules grouped by language
+	ModulesByLayer     map[string]int // Modules grouped by layer
+	BuildDuration      time.Duration  // Time taken to build graph
 }
 
 // NewGraph creates a new empty graph

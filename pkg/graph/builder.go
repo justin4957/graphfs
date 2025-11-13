@@ -57,9 +57,9 @@ type Builder struct {
 
 // BuildOptions configures graph building
 type BuildOptions struct {
-	ScanOptions     scanner.ScanOptions // Scanner configuration
-	Validate        bool                // Validate graph after building
-	ReportProgress  bool                // Report progress during build
+	ScanOptions    scanner.ScanOptions // Scanner configuration
+	Validate       bool                // Validate graph after building
+	ReportProgress bool                // Report progress during build
 }
 
 // NewBuilder creates a new graph builder
@@ -198,7 +198,7 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 
 		// Extract module information
 		if strings.Contains(triple.Predicate, "rdf-syntax-ns#type") &&
-		   strings.Contains(objectStr, "Module") {
+			strings.Contains(objectStr, "Module") {
 			moduleURI = triple.Subject
 			if module == nil {
 				module = NewModule(relPath, moduleURI)
