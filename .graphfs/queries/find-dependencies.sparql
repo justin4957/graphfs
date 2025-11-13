@@ -1,0 +1,11 @@
+# Find all direct dependencies for a specific module
+# Usage: graphfs query --file .graphfs/queries/find-dependencies.sparql
+# Note: Modify the module name in the query for different modules
+
+PREFIX code: <https://schema.codedoc.org/>
+
+SELECT ?module ?dependency
+WHERE {
+  ?module code:name "main.go" ;
+          code:linksTo ?dependency .
+}

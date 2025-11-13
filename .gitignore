@@ -34,9 +34,14 @@ build/
 Thumbs.db
 
 # GraphFS-specific
-.graphfs/
+.graphfs/store.db
+.graphfs/cache/
 *.graphfs.db
 *.ttl.cache
+
+# Example binaries
+examples/*/minimal-app
+examples/*/*.exe
 
 # Test fixtures
 testdata/generated/

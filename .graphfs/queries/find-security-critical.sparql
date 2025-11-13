@@ -1,0 +1,13 @@
+# Find all security-critical modules
+# Usage: graphfs query --file .graphfs/queries/find-security-critical.sparql
+
+PREFIX code: <https://schema.codedoc.org/>
+PREFIX sec: <https://schema.codedoc.org/security/>
+
+SELECT ?module ?name ?description
+WHERE {
+  ?module a code:Module ;
+          code:name ?name ;
+          code:description ?description ;
+          sec:securityCritical true .
+}
