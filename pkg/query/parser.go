@@ -17,7 +17,7 @@ ParseQuery
 @prefix code: <https://schema.codedoc.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<#parser.go> a code:Module ;
+<#pkg/query/parser.go> a code:Module ;
     code:name "pkg/query/parser.go" ;
     code:description "SPARQL query parser" ;
     code:language "go" ;

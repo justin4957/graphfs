@@ -19,20 +19,29 @@ Instead of mentally tracking which files depend on what, GraphFS builds a living
 
 ```bash
 # Install GraphFS
-go install github.com/justin4957/graphfs@latest
+go install github.com/justin4957/graphfs/cmd/graphfs@latest
 
 # Initialize in your project
 cd /path/to/your/project
 graphfs init
 
-# Start query endpoints
-graphfs serve
-# 🌐 GraphQL endpoint: http://localhost:7681/graphql
-# 🔍 SPARQL endpoint: http://localhost:7681/sparql
+# Scan codebase and build knowledge graph
+graphfs scan --validate --stats
 
-# Query your codebase semantically
-graphfs query "show modules tagged security-critical"
+# Query the graph with SPARQL
+graphfs query 'SELECT ?module ?description WHERE {
+  ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+  ?module <https://schema.codedoc.org/description> ?description .
+}'
+
+# Query from file with JSON output
+graphfs query --file queries/modules.sparql --format json
+
+# Export graph to JSON
+graphfs scan --output graph.json
 ```
+
+**Note**: The SPARQL query endpoint and GraphQL features are coming in Phase 2.
 
 ## 📚 Core Concepts
 
@@ -87,12 +96,10 @@ GraphFS scans your codebase and:
 
 ```sparql
 # Find all modules that depend on the auth service
-PREFIX code: <https://schema.codedoc.org/>
-
-SELECT ?module ?relationship WHERE {
-  ?module code:linksTo ?link .
-  ?link code:path "services/auth.go" ;
-        code:relationship ?relationship .
+SELECT ?module ?dependency WHERE {
+  ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+  ?module <https://schema.codedoc.org/linksTo> ?dependency .
+  FILTER(CONTAINS(STR(?dependency), "auth.go"))
 }
 ```
 

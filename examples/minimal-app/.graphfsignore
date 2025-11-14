@@ -1,0 +1,40 @@
+# GraphFS ignore patterns
+# Add patterns for files and directories to ignore during scanning
+
+# Dependencies
+node_modules/
+vendor/
+*.pyc
+__pycache__/
+
+# Build outputs
+dist/
+build/
+*.o
+*.a
+*.so
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.svn/
+.hg/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large files
+*.log
+*.zip
+*.tar.gz
+*.pdf
+*.jpg
+*.png
+*.gif

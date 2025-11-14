@@ -27,7 +27,7 @@ UserService, NewUserService
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix arch: <https://schema.codedoc.org/architecture/> .
 
-<#user.go> a code:Module ;
+<#services/user.go> a code:Module ;
     code:name "services/user.go" ;
     code:description "User management service" ;
     code:language "go" ;
@@ -37,14 +37,14 @@ UserService, NewUserService
     code:tags "service", "user", "crud", "business-logic" ;
     code:dependsOn <./auth.go> .
 
-<#user.go-rule1> a arch:Rule ;
-    arch:applies <#user.go> ;
+<#services/user.go-rule1> a arch:Rule ;
+    arch:applies <#services/user.go> ;
     arch:type "dependency" ;
     arch:description "Must use AuthService for permission checks" ;
     arch:requires <./auth.go#AuthService> .
 
-<#user.go-rule2> a arch:Rule ;
-    arch:applies <#user.go> ;
+<#services/user.go-rule2> a arch:Rule ;
+    arch:applies <#services/user.go> ;
     arch:type "validation" ;
     arch:description "Must validate all user data before operations" ;
     arch:requires <../models/user.go#ValidateUser> .

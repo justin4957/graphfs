@@ -54,9 +54,9 @@ func NewExecutor(tripleStore *store.TripleStore) *Executor {
 
 // QueryResult represents the result of a query execution
 type QueryResult struct {
-	Variables []string             // Variable names (without ?)
-	Bindings  []map[string]string  // Variable bindings for each result
-	Count     int                  // Number of results
+	Variables []string            // Variable names (without ?)
+	Bindings  []map[string]string // Variable bindings for each result
+	Count     int                 // Number of results
 }
 
 // Execute executes a parsed query
