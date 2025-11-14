@@ -2,10 +2,13 @@
 # Module: cmd/graphfs/main.go
 Main CLI entry point for GraphFS.
 
+Implements the root command and CLI framework using Cobra.
+
 ## Linked Modules
-- [parser](../../pkg/parser) - RDF/Turtle parsing
-- [scanner](../../pkg/scanner) - Filesystem scanning
-- [graph](../../pkg/graph) - Knowledge graph construction
+- [root](./root.go) - Root command
+- [../../pkg/parser](../../pkg/parser/parser.go) - RDF/Turtle parsing
+- [../../pkg/scanner](../../pkg/scanner/scanner.go) - Filesystem scanning
+- [../../pkg/graph](../../pkg/graph/graph.go) - Knowledge graph construction
 
 ## Tags
 cli, main, entrypoint
@@ -15,40 +18,29 @@ main
 
 <!-- LinkedDoc RDF -->
 @prefix code: <https://schema.codedoc.org/> .
-<this> a code:Module ;
-    code:name "cmd/graphfs/main.go" ;
-    code:description "Main CLI entry point for GraphFS" ;
-    code:tags "cli", "main", "entrypoint" .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+<#main.go> a code:Module ;
+
+	code:name "cmd/graphfs/main.go" ;
+	code:description "Main CLI entry point for GraphFS" ;
+	code:language "go" ;
+	code:layer "cli" ;
+	code:linksTo <./root.go>, <../../pkg/parser/parser.go>,
+	             <../../pkg/scanner/scanner.go>, <../../pkg/graph/graph.go> ;
+	code:exports <#main> ;
+	code:tags "cli", "main", "entrypoint" .
+
 <!-- End LinkedDoc RDF -->
 */
 package main
 
 import (
-	"fmt"
 	"os"
 )
 
-// Version information
-const (
-	Version = "0.1.0"
-	Name    = "GraphFS"
-)
-
 func main() {
-	fmt.Printf("%s v%s - Semantic Code Filesystem Toolkit\n", Name, Version)
-	fmt.Println()
-	fmt.Println("Available commands:")
-	fmt.Println("  init      Initialize GraphFS in current directory")
-	fmt.Println("  scan      Scan codebase and build knowledge graph")
-	fmt.Println("  query     Execute SPARQL query against graph")
-	fmt.Println("  serve     Start query server (SPARQL/GraphQL)")
-	fmt.Println("  impact    Analyze impact of changing a module")
-	fmt.Println("  validate  Validate architecture rules")
-	fmt.Println("  docs      Generate documentation")
-	fmt.Println("  version   Show version information")
-	fmt.Println()
-	fmt.Println("Coming soon! Phase 1 is currently in development.")
-	fmt.Println("See README.md and ROADMAP.md for details.")
-
-	os.Exit(0)
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
