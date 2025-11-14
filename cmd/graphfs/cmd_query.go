@@ -42,6 +42,7 @@ import (
 
 	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/query"
+	"github.com/justin4957/graphfs/pkg/scanner"
 	"github.com/spf13/cobra"
 )
 
@@ -120,6 +121,11 @@ func runQuery(cmd *cobra.Command, args []string) error {
 
 	builder := graph.NewBuilder()
 	graphObj, err := builder.Build(currentDir, graph.BuildOptions{
+		ScanOptions: scanner.ScanOptions{
+			UseDefaults: true,
+			IgnoreFiles: []string{".gitignore", ".graphfsignore"},
+			Concurrent:  true,
+		},
 		ReportProgress: verbose,
 	})
 	if err != nil {

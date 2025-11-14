@@ -118,6 +118,9 @@ func runScan(cmd *cobra.Command, args []string) error {
 		IncludePatterns: config.Scan.Include,
 		ExcludePatterns: config.Scan.Exclude,
 		MaxFileSize:     config.Scan.MaxFileSize,
+		UseDefaults:     true,
+		IgnoreFiles:     []string{".gitignore", ".graphfsignore"},
+		Concurrent:      true,
 	}
 
 	if len(scanInclude) > 0 {

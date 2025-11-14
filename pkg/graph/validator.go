@@ -18,7 +18,7 @@ Validator, ValidationResult, ValidationError, ValidationWarning, NewValidator
 @prefix code: <https://schema.codedoc.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<#validator.go> a code:Module ;
+<#pkg/graph/validator.go> a code:Module ;
     code:name "pkg/graph/validator.go" ;
     code:description "Graph validation implementation" ;
     code:language "go" ;

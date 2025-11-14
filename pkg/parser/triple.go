@@ -18,7 +18,7 @@ Triple, TripleObject, LiteralObject, URIObject, BlankNodeObject
 @prefix code: <https://schema.codedoc.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<#triple.go> a code:Module ;
+<#pkg/parser/triple.go> a code:Module ;
     code:name "pkg/parser/triple.go" ;
     code:description "RDF triple data structure" ;
     code:language "go" ;

@@ -20,7 +20,7 @@ main
 @prefix code: <https://schema.codedoc.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<#main.go> a code:Module ;
+<#cmd/graphfs/main.go> a code:Module ;
 
 	code:name "cmd/graphfs/main.go" ;
 	code:description "Main CLI entry point for GraphFS" ;

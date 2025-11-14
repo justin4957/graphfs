@@ -13,6 +13,13 @@ build/
 *.o
 *.a
 *.so
+bin/
+
+# Tests (avoid scanning test files to prevent duplicate URIs)
+*_test.go
+*test*.go
+test/
+tests/
 
 # IDE and editor files
 .vscode/
@@ -38,3 +45,7 @@ Thumbs.db
 *.jpg
 *.png
 *.gif
+
+# Documentation
+docs/
+*.md

@@ -18,7 +18,7 @@ Triple
 @prefix code: <https://schema.codedoc.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<#triple.go> a code:Module ;
+<#internal/store/triple.go> a code:Module ;
     code:name "internal/store/triple.go" ;
     code:description "Triple data structure for RDF storage" ;
     code:language "go" ;
