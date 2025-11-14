@@ -34,8 +34,7 @@ build/
 Thumbs.db
 
 # GraphFS-specific
-.graphfs/store.db
-.graphfs/cache/
+.graphfs/
 *.graphfs.db
 *.ttl.cache
 

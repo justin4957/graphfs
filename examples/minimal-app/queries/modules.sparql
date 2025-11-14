@@ -1,0 +1,4 @@
+SELECT ?module ?description WHERE {
+  ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+  ?module <https://schema.codedoc.org/description> ?description .
+}
