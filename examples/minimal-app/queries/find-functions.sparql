@@ -1,0 +1,6 @@
+# Find all functions and their descriptions
+SELECT ?function ?name ?description WHERE {
+  ?function <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Function> .
+  ?function <https://schema.codedoc.org/name> ?name .
+  ?function <https://schema.codedoc.org/description> ?description .
+}

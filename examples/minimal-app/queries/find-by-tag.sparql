@@ -1,0 +1,7 @@
+# Find modules by tag
+SELECT ?module ?name ?tag WHERE {
+  ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+  ?module <https://schema.codedoc.org/name> ?name .
+  ?module <https://schema.codedoc.org/tags> ?tag .
+  FILTER(CONTAINS(?tag, "security"))
+}

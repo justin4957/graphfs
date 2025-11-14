@@ -1,0 +1,9 @@
+# Find leaf modules (modules with no dependencies on other modules)
+SELECT ?module ?name ?description WHERE {
+  ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+  ?module <https://schema.codedoc.org/name> ?name .
+  ?module <https://schema.codedoc.org/description> ?description .
+  FILTER NOT EXISTS {
+    ?module <https://schema.codedoc.org/linksTo> ?dep .
+  }
+}
