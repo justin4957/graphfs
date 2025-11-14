@@ -135,7 +135,12 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 
 		validationResult := b.validator.Validate(graph)
 		if len(validationResult.Errors) > 0 {
-			return graph, fmt.Errorf("validation failed with %d errors", len(validationResult.Errors))
+			// Build detailed error message
+			errorMsg := fmt.Sprintf("validation failed with %d errors:\n", len(validationResult.Errors))
+			for _, err := range validationResult.Errors {
+				errorMsg += fmt.Sprintf("  - %s: %s\n", err.Module, err.Message)
+			}
+			return graph, fmt.Errorf("%s", errorMsg)
 		}
 
 		if opts.ReportProgress && len(validationResult.Warnings) > 0 {

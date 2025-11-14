@@ -82,11 +82,11 @@ type ScanOptions struct {
 // DefaultScanOptions returns default scan options
 func DefaultScanOptions() ScanOptions {
 	return ScanOptions{
-		MaxFileSize: 1024 * 1024, // 1MB
+		MaxFileSize:    1024 * 1024, // 1MB
 		FollowSymlinks: false,
-		IgnoreFiles: []string{".gitignore", ".graphfsignore"},
-		UseDefaults: true,
-		Concurrent:  true,
+		IgnoreFiles:    []string{".gitignore", ".graphfsignore"},
+		UseDefaults:    true,
+		Concurrent:     true,
 	}
 }
 

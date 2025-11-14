@@ -44,14 +44,14 @@ const (
 
 // SelectQuery represents a SELECT query
 type SelectQuery struct {
-	Variables    []string        // Variables to select (e.g., ["?subject", "?predicate"])
-	Distinct     bool            // DISTINCT modifier
-	Where        []TriplePattern // WHERE clause triple patterns
-	Filters      []Filter        // FILTER clauses
-	OrderBy      []OrderBy       // ORDER BY clauses
-	Limit        int             // LIMIT (0 = no limit)
-	Offset       int             // OFFSET (0 = no offset)
-	Prefixes     map[string]string // Prefix declarations
+	Variables []string          // Variables to select (e.g., ["?subject", "?predicate"])
+	Distinct  bool              // DISTINCT modifier
+	Where     []TriplePattern   // WHERE clause triple patterns
+	Filters   []Filter          // FILTER clauses
+	OrderBy   []OrderBy         // ORDER BY clauses
+	Limit     int               // LIMIT (0 = no limit)
+	Offset    int               // OFFSET (0 = no offset)
+	Prefixes  map[string]string // Prefix declarations
 }
 
 // TriplePattern represents a triple pattern in WHERE clause

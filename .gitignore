@@ -49,3 +49,4 @@ testdata/generated/
 # Documentation builds
 docs/generated/
 site/
+/graphfs

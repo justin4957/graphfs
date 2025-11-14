@@ -133,8 +133,8 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	}
 
 	// Execute query
-	engine := query.NewEngine(graphObj.Store)
-	result, err := engine.Execute(queryString)
+	executor := query.NewExecutor(graphObj.Store)
+	result, err := executor.ExecuteString(queryString)
 	if err != nil {
 		return fmt.Errorf("query failed: %w", err)
 	}

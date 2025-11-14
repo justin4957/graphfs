@@ -19,7 +19,7 @@ User, UserRole, ValidateUser
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
-<#user.go> a code:Module ;
+<#models/user.go> a code:Module ;
     code:name "models/user.go" ;
     code:description "User data model and validation" ;
     code:language "go" ;
