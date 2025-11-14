@@ -1,0 +1,6 @@
+# Module statistics by layer
+SELECT ?layer (COUNT(?module) as ?count) WHERE {
+  ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+  ?module <https://schema.codedoc.org/layer> ?layer .
+}
+GROUP BY ?layer

@@ -210,13 +210,19 @@ graphfs/
 
 ## 🗺️ Roadmap
 
-### Phase 1: Core Infrastructure (Weeks 1-2)
+### Phase 1: Core Infrastructure ✅ COMPLETE
 - [x] Project initialization
-- [ ] RDF/Turtle parser for LinkedDoc headers
-- [ ] Filesystem scanner with language detection
-- [ ] In-memory triple store
-- [ ] Basic SPARQL query engine
-- [ ] CLI tool skeleton (`graphfs init`, `graphfs scan`, `graphfs query`)
+- [x] RDF/Turtle parser for LinkedDoc headers
+- [x] Filesystem scanner with language detection and ignore patterns
+- [x] In-memory triple store with multiple indexes
+- [x] SPARQL query engine (SELECT, WHERE, FILTER, GROUP BY, LIMIT)
+- [x] Complete CLI tool (`graphfs init`, `graphfs scan`, `graphfs query`)
+- [x] Graph builder with validation
+- [x] Configuration system (YAML)
+- [x] Output formats (table, JSON, CSV)
+- [x] Comprehensive documentation and examples
+- [x] Test suite with integration tests
+- [x] CI/CD pipeline (GitHub Actions)
 
 ### Phase 2: Query Interfaces (Weeks 3-4)
 - [ ] SPARQL HTTP endpoint
@@ -363,8 +369,18 @@ GraphFS builds on ideas from:
 
 ---
 
-**Status**: 🚧 Early Development - Phase 1 in progress
+**Status**: ✅ Phase 1 Complete - Ready for Production Use
+
+**Version**: v0.1.0
 
 **Maintained by**: [@justin4957](https://github.com/justin4957)
 
 **Questions?** Open an issue or start a discussion!
+
+## 📚 Additional Resources
+
+- [User Guide](docs/USER_GUIDE.md) - Complete usage guide with examples
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) - Architecture and contributing guide
+- [Query Examples](examples/minimal-app/examples/query-examples.md) - 9+ working SPARQL examples
+- [CHANGELOG](CHANGELOG.md) - Version history and changes
+- [CLI Documentation](cmd/graphfs/README.md) - Detailed CLI reference
