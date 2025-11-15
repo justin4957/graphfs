@@ -128,15 +128,17 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	// Create server configuration
 	serverConfig := &server.Config{
-		Host:         serveHost,
-		Port:         servePort,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		EnableCORS:   viper.GetBool("server.cors"),
+		Host:             serveHost,
+		Port:             servePort,
+		ReadTimeout:      30 * time.Second,
+		WriteTimeout:     30 * time.Second,
+		EnableCORS:       viper.GetBool("server.cors"),
+		EnableGraphQL:    true,
+		EnablePlayground: true,
 	}
 
-	// Create and start server
-	srv := server.NewServer(serverConfig, executor)
+	// Create and start server with GraphQL support
+	srv := server.NewServerWithGraph(serverConfig, executor, g)
 
 	// Handle graceful shutdown
 	go func() {

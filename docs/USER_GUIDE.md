@@ -700,6 +700,470 @@ graphfs schema generate --output schema.graphql --validate
 - Schema definition exists
 - Proper GraphQL SDL syntax
 
+## GraphQL Server
+
+GraphFS includes a built-in GraphQL server that exposes your knowledge graph via a GraphQL API with an interactive playground.
+
+### Starting the GraphQL Server
+
+The GraphQL endpoint is automatically enabled when you start the HTTP server:
+
+```bash
+# Start server with GraphQL and SPARQL endpoints
+graphfs serve
+
+# Start on custom port
+graphfs serve --port 9000
+
+# Start on all interfaces
+graphfs serve --host 0.0.0.0 --port 8080
+```
+
+**Server output:**
+```
+Scanning codebase and building graph...
+Built graph with 156 modules, 1247 triples
+Starting GraphFS server on http://localhost:8080
+SPARQL endpoint: http://localhost:8080/sparql
+GraphQL endpoint: http://localhost:8080/graphql
+GraphQL Playground: http://localhost:8080/graphql
+```
+
+### GraphQL Playground
+
+The server includes an interactive GraphQL Playground accessible at `http://localhost:8080/graphql` in your browser.
+
+The playground provides:
+- Auto-completion for queries
+- Schema documentation browser
+- Query history
+- Real-time query execution
+
+### GraphQL Query Examples
+
+#### Get a Single Module
+
+```graphql
+{
+  module(name: "main.go") {
+    name
+    description
+    language
+    layer
+    tags
+    exports {
+      name
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "module": {
+      "name": "main.go",
+      "description": "Main application entry point",
+      "language": "go",
+      "layer": "application",
+      "tags": ["entry", "main"],
+      "exports": [
+        { "name": "main" }
+      ]
+    }
+  }
+}
+```
+
+#### List All Modules with Filtering
+
+```graphql
+{
+  modules(language: "go", first: 10) {
+    edges {
+      node {
+        name
+        path
+        language
+        layer
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "modules": {
+      "edges": [
+        {
+          "node": {
+            "name": "main.go",
+            "path": "cmd/app/main.go",
+            "language": "go",
+            "layer": "application"
+          },
+          "cursor": "Y3Vyc29yOjA="
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": true,
+        "endCursor": "Y3Vyc29yOjk="
+      },
+      "totalCount": 156
+    }
+  }
+}
+```
+
+#### Query Module Dependencies
+
+```graphql
+{
+  module(path: "cmd/app/main.go") {
+    name
+    dependencies {
+      name
+      path
+      description
+    }
+    dependents {
+      name
+      path
+    }
+  }
+}
+```
+
+#### Search Modules by Description
+
+```graphql
+{
+  searchModules(query: "authentication") {
+    name
+    path
+    description
+    tags
+  }
+}
+```
+
+#### Get Graph Statistics
+
+```graphql
+{
+  stats {
+    totalModules
+    totalTriples
+    totalRelationships
+    modulesByLanguage {
+      language
+      count
+    }
+    modulesByLayer {
+      layer
+      count
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "stats": {
+      "totalModules": 156,
+      "totalTriples": 1247,
+      "totalRelationships": 289,
+      "modulesByLanguage": [
+        { "language": "go", "count": 143 },
+        { "language": "javascript", "count": 13 }
+      ],
+      "modulesByLayer": [
+        { "layer": "application", "count": 12 },
+        { "layer": "api", "count": 34 },
+        { "layer": "service", "count": 56 },
+        { "layer": "data", "count": 54 }
+      ]
+    }
+  }
+}
+```
+
+#### Filter by Multiple Criteria
+
+```graphql
+{
+  modules(layer: "service", tag: "authentication", first: 5) {
+    edges {
+      node {
+        name
+        description
+        tags
+      }
+    }
+    totalCount
+  }
+}
+```
+
+### Pagination
+
+The GraphQL API uses cursor-based pagination following the Relay specification:
+
+```graphql
+# First page
+{
+  modules(first: 10) {
+    edges {
+      node { name }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Next page using cursor
+{
+  modules(first: 10, after: "Y3Vyc29yOjk=") {
+    edges {
+      node { name }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+```
+
+### Querying from Code
+
+#### cURL
+```bash
+curl -X POST http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ module(name: \"main.go\") { name description language } }"
+  }'
+```
+
+#### Python
+```python
+import requests
+
+query = """
+{
+  modules(language: "go", first: 10) {
+    edges {
+      node {
+        name
+        path
+        language
+      }
+    }
+    totalCount
+  }
+}
+"""
+
+response = requests.post(
+    'http://localhost:8080/graphql',
+    json={'query': query}
+)
+
+data = response.json()
+modules = data['data']['modules']
+print(f"Total modules: {modules['totalCount']}")
+for edge in modules['edges']:
+    print(f"- {edge['node']['name']}")
+```
+
+#### JavaScript/TypeScript
+```javascript
+async function queryGraphFS() {
+  const response = await fetch('http://localhost:8080/graphql', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: `
+        {
+          stats {
+            totalModules
+            modulesByLanguage {
+              language
+              count
+            }
+          }
+        }
+      `
+    })
+  });
+
+  const { data } = await response.json();
+  console.log('Graph stats:', data.stats);
+}
+```
+
+#### Go
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+type GraphQLRequest struct {
+    Query string `json:"query"`
+}
+
+type GraphQLResponse struct {
+    Data struct {
+        Module struct {
+            Name        string `json:"name"`
+            Description string `json:"description"`
+            Language    string `json:"language"`
+        } `json:"module"`
+    } `json:"data"`
+}
+
+func main() {
+    query := `{ module(name: "main.go") { name description language } }`
+
+    reqBody, _ := json.Marshal(GraphQLRequest{Query: query})
+    resp, err := http.Post(
+        "http://localhost:8080/graphql",
+        "application/json",
+        bytes.NewBuffer(reqBody),
+    )
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+
+    var result GraphQLResponse
+    json.NewDecoder(resp.Body).Decode(&result)
+
+    fmt.Printf("Module: %s (%s)\n",
+        result.Data.Module.Name,
+        result.Data.Module.Language)
+}
+```
+
+### GraphQL Features
+
+The GraphQL server includes:
+
+1. **Type-safe Queries**: Full GraphQL type system with schema introspection
+2. **Interactive Playground**: Web-based IDE for exploring and testing queries
+3. **Cursor Pagination**: Relay-style cursor-based pagination for efficient data fetching
+4. **Filtering**: Filter modules by language, layer, and tags
+5. **Full-text Search**: Search modules by description, name, and tags
+6. **Relationship Traversal**: Query module dependencies and dependents
+7. **Statistics**: Graph-wide statistics and aggregations
+8. **CORS Support**: Enabled by default for cross-origin requests
+
+### Server Configuration
+
+The server can be configured via the `.graphfs/config.yaml` file:
+
+```yaml
+server:
+  # Enable CORS for cross-origin requests
+  cors: true
+
+  # Host and port are set via CLI flags
+  # graphfs serve --host 0.0.0.0 --port 8080
+```
+
+### Health Check
+
+The server includes a health check endpoint:
+
+```bash
+curl http://localhost:8080/health
+```
+
+**Response:**
+```json
+{"status":"ok"}
+```
+
+### API Information
+
+Get information about available endpoints:
+
+```bash
+curl http://localhost:8080/
+```
+
+**Response:**
+```json
+{
+  "name": "GraphFS API",
+  "version": "0.2.0",
+  "endpoints": {
+    "sparql": {
+      "path": "/sparql",
+      "methods": ["GET", "POST"],
+      "description": "SPARQL query endpoint",
+      "formats": ["json", "csv", "tsv", "xml"]
+    },
+    "graphql": {
+      "path": "/graphql",
+      "methods": ["GET", "POST"],
+      "description": "GraphQL query endpoint",
+      "playground": true
+    },
+    "health": {
+      "path": "/health",
+      "methods": ["GET"],
+      "description": "Health check endpoint"
+    }
+  }
+}
+```
+
+### Use Cases
+
+#### API Development
+Use GraphQL as the primary query interface for your codebase knowledge graph, enabling rich client applications.
+
+#### Interactive Exploration
+The GraphQL Playground provides an intuitive interface for exploring your codebase structure without writing SPARQL queries.
+
+#### Client Code Generation
+Generate TypeScript types or other client code from the GraphQL schema for type-safe API clients.
+
+#### Dashboard Development
+Build real-time dashboards showing codebase metrics, dependencies, and module relationships using GraphQL subscriptions (future feature).
+
+### Performance Considerations
+
+- The graph is loaded into memory at server startup
+- Queries are executed against the in-memory graph for fast response times
+- For large codebases (1000+ modules), consider filtering results with `first` parameter
+- Cursor-based pagination enables efficient traversal of large result sets
+
 ## Common Use Cases
 
 ### 1. Understanding a New Codebase

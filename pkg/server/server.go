@@ -39,26 +39,32 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/query"
+	graphqlserver "github.com/justin4957/graphfs/pkg/server/graphql"
 )
 
 // Config holds server configuration
 type Config struct {
-	Host         string
-	Port         int
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	EnableCORS   bool
+	Host             string
+	Port             int
+	ReadTimeout      time.Duration
+	WriteTimeout     time.Duration
+	EnableCORS       bool
+	EnableGraphQL    bool
+	EnablePlayground bool
 }
 
 // DefaultConfig returns default server configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Host:         "localhost",
-		Port:         8080,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		EnableCORS:   true,
+		Host:             "localhost",
+		Port:             8080,
+		ReadTimeout:      30 * time.Second,
+		WriteTimeout:     30 * time.Second,
+		EnableCORS:       true,
+		EnableGraphQL:    true,
+		EnablePlayground: true,
 	}
 }
 
@@ -66,6 +72,7 @@ func DefaultConfig() *Config {
 type Server struct {
 	config   *Config
 	executor *query.Executor
+	graph    *graph.Graph
 	server   *http.Server
 }
 
@@ -81,6 +88,19 @@ func NewServer(config *Config, executor *query.Executor) *Server {
 	}
 }
 
+// NewServerWithGraph creates a new HTTP server with graph for GraphQL support
+func NewServerWithGraph(config *Config, executor *query.Executor, g *graph.Graph) *Server {
+	if config == nil {
+		config = DefaultConfig()
+	}
+
+	return &Server{
+		config:   config,
+		executor: executor,
+		graph:    g,
+	}
+}
+
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
@@ -88,6 +108,18 @@ func (s *Server) Start() error {
 	// SPARQL endpoint
 	sparqlHandler := NewSPARQLHandler(s.executor, s.config.EnableCORS)
 	mux.Handle("/sparql", sparqlHandler)
+
+	// GraphQL endpoint (if enabled and graph is available)
+	if s.config.EnableGraphQL && s.graph != nil {
+		graphqlHandler, err := graphqlserver.NewHandler(s.graph, graphqlserver.HandlerConfig{
+			EnablePlayground: s.config.EnablePlayground,
+			EnableCORS:       s.config.EnableCORS,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create GraphQL handler: %w", err)
+		}
+		mux.Handle("/graphql", graphqlHandler)
+	}
 
 	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +140,12 @@ func (s *Server) Start() error {
 
 	log.Printf("Starting GraphFS server on http://%s", addr)
 	log.Printf("SPARQL endpoint: http://%s/sparql", addr)
+	if s.config.EnableGraphQL && s.graph != nil {
+		log.Printf("GraphQL endpoint: http://%s/graphql", addr)
+		if s.config.EnablePlayground {
+			log.Printf("GraphQL Playground: http://%s/graphql", addr)
+		}
+	}
 
 	return s.server.ListenAndServe()
 }
@@ -128,7 +166,9 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	response := `{
+
+	// Build endpoints info
+	endpoints := `{
   "name": "GraphFS API",
   "version": "0.2.0",
   "endpoints": {
@@ -137,7 +177,19 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
       "methods": ["GET", "POST"],
       "description": "SPARQL query endpoint",
       "formats": ["json", "csv", "tsv", "xml"]
-    },
+    }`
+
+	if s.config.EnableGraphQL && s.graph != nil {
+		endpoints += `,
+    "graphql": {
+      "path": "/graphql",
+      "methods": ["GET", "POST"],
+      "description": "GraphQL query endpoint",
+      "playground": ` + fmt.Sprintf("%v", s.config.EnablePlayground) + `
+    }`
+	}
+
+	endpoints += `,
     "health": {
       "path": "/health",
       "methods": ["GET"],
@@ -145,5 +197,6 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
     }
   }
 }`
-	w.Write([]byte(response))
+
+	w.Write([]byte(endpoints))
 }
