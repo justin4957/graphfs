@@ -9,9 +9,10 @@ Welcome to GraphFS! This guide will help you get started with using GraphFS to b
 3. [Adding LinkedDoc to Your Code](#adding-linkeddoc-to-your-code)
 4. [Writing SPARQL Queries](#writing-sparql-queries)
 5. [HTTP Server and API](#http-server-and-api)
-6. [Common Use Cases](#common-use-cases)
-7. [Troubleshooting](#troubleshooting)
-8. [FAQ](#faq)
+6. [GraphQL Schema Generation](#graphql-schema-generation)
+7. [Common Use Cases](#common-use-cases)
+8. [Troubleshooting](#troubleshooting)
+9. [FAQ](#faq)
 
 ## Installation
 
@@ -482,6 +483,222 @@ curl -s -X POST http://localhost:8080/sparql \
   -d 'SELECT ?module ?name WHERE { ?module <https://schema.codedoc.org/name> ?name }' \
   | jq '.results.bindings[] | "\(.module.value): \(.name.value)"'
 ```
+
+## GraphQL Schema Generation
+
+GraphFS can automatically generate GraphQL Schema Definition Language (SDL) from your knowledge graph, enabling GraphQL queries.
+
+### Generating a Schema
+
+```bash
+# Generate and print to stdout
+graphfs schema generate
+
+# Save to file
+graphfs schema generate --output schema.graphql
+
+# Generate with validation
+graphfs schema generate --output schema.graphql --validate
+```
+
+### List Available Types
+
+See what GraphQL types will be generated:
+
+```bash
+graphfs schema types
+```
+
+**Output:**
+```
+Available GraphQL Types:
+
+  - Export
+  - GraphStats
+  - LanguageStats
+  - LayerStats
+  - Module
+  - ModuleConnection
+  - ModuleEdge
+  - PageInfo
+  - Query
+
+Total: 9 types
+```
+
+### Generated Schema Structure
+
+The generated schema includes:
+
+#### Module Type
+```graphql
+"""Represents a code module in the knowledge graph"""
+type Module {
+  """Unique identifier"""
+  id: ID!
+
+  """URI identifier (e.g., <#main.go>)"""
+  uri: String!
+
+  """Module name"""
+  name: String!
+
+  """Module description"""
+  description: String
+
+  """File path relative to root"""
+  path: String!
+
+  """Programming language"""
+  language: String
+
+  """Architectural layer"""
+  layer: String
+
+  """Tags for categorization"""
+  tags: [String!]!
+
+  """Modules this module depends on"""
+  dependencies: [Module!]!
+
+  """Modules that depend on this module"""
+  dependents: [Module!]!
+
+  """Exported symbols/functions"""
+  exports: [Export!]!
+}
+```
+
+#### Query Type
+```graphql
+"""Root query type"""
+type Query {
+  """Get a single module by name or path"""
+  module(name: String, path: String, uri: String): Module
+
+  """List all modules with optional filtering"""
+  modules(
+    """Filter by programming language"""
+    language: String
+
+    """Filter by architectural layer"""
+    layer: String
+
+    """Filter by tag"""
+    tag: String
+
+    """Maximum number of results"""
+    first: Int
+
+    """Cursor for pagination"""
+    after: String
+  ): ModuleConnection!
+
+  """Search modules by description"""
+  searchModules(query: String!): [Module!]!
+
+  """Get graph statistics"""
+  stats: GraphStats!
+}
+```
+
+#### Pagination Types
+```graphql
+"""Connection type for module pagination"""
+type ModuleConnection {
+  """List of module edges"""
+  edges: [ModuleEdge!]!
+
+  """Pagination information"""
+  pageInfo: PageInfo!
+
+  """Total count of modules"""
+  totalCount: Int!
+}
+
+"""Edge type for module connections"""
+type ModuleEdge {
+  """The module"""
+  node: Module!
+
+  """Cursor for this edge"""
+  cursor: String!
+}
+
+"""Information about pagination"""
+type PageInfo {
+  """Whether there are more results"""
+  hasNextPage: Boolean!
+
+  """Whether there are previous results"""
+  hasPreviousPage: Boolean!
+
+  """Cursor of the first edge"""
+  startCursor: String
+
+  """Cursor of the last edge"""
+  endCursor: String
+}
+```
+
+### Example Workflow
+
+```bash
+# 1. Scan your codebase
+graphfs scan --validate
+
+# 2. Generate GraphQL schema
+graphfs schema generate --output api/schema.graphql --validate
+
+# 3. Verify the schema
+cat api/schema.graphql
+
+# 4. Use with GraphQL server (Phase 2.3)
+# The schema will be used by the GraphQL server implementation
+```
+
+### Schema Features
+
+The generated schema includes:
+
+1. **Type Safety**: All fields are properly typed with GraphQL scalar and object types
+2. **Documentation**: Field descriptions are included as GraphQL doc strings
+3. **Relationships**: Module dependencies and dependents are modeled as GraphQL relationships
+4. **Pagination**: Cursor-based pagination following Relay specification
+5. **Filtering**: Query arguments for filtering by language, layer, and tags
+6. **Statistics**: Graph statistics exposed via the `stats` query
+
+### Use Cases
+
+#### For GraphQL Server Development
+```bash
+# Generate schema for your GraphQL server
+graphfs schema generate --output src/schema/graphfs.graphql
+
+# Use in your GraphQL server (e.g., Apollo Server)
+```
+
+#### For API Documentation
+The generated schema serves as both executable code and documentation for your codebase structure.
+
+#### For Client Code Generation
+Many GraphQL tools can generate client code from SDL:
+```bash
+# Example with GraphQL Code Generator
+graphql-codegen --schema schema.graphql --generates types.ts
+```
+
+### Schema Validation
+
+The `--validate` flag performs basic validation:
+```bash
+graphfs schema generate --output schema.graphql --validate
+```
+
+**Validation checks:**
+- Required types present (Query, Module)
+- Schema definition exists
+- Proper GraphQL SDL syntax
 
 ## Common Use Cases
 
