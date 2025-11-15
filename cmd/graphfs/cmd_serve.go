@@ -35,6 +35,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -90,7 +91,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load configuration
-	config, err := loadConfig(rootPath)
+	configPath := filepath.Join(rootPath, ".graphfs", "config.yaml")
+	config, err := loadConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
