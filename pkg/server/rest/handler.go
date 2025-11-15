@@ -54,18 +54,18 @@ func NewHandler(g *graph.Graph, enableCORS bool) *Handler {
 
 // RegisterRoutes registers all REST API routes
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	// Module endpoints
-	mux.HandleFunc("/api/v1/modules", h.handleModules)
-	mux.HandleFunc("/api/v1/modules/", h.handleModulesWithID)
+	// Module endpoints - register specific paths before wildcards
 	mux.HandleFunc("/api/v1/modules/search", h.handleModulesSearch)
+	mux.HandleFunc("/api/v1/modules/", h.handleModulesWithID)
+	mux.HandleFunc("/api/v1/modules", h.handleModules)
 
 	// Analysis endpoints
 	mux.HandleFunc("/api/v1/analysis/stats", h.handleAnalysisStats)
 	mux.HandleFunc("/api/v1/analysis/impact/", h.handleAnalysisImpact)
 
 	// Tag endpoints
-	mux.HandleFunc("/api/v1/tags", h.handleTags)
 	mux.HandleFunc("/api/v1/tags/", h.handleTagModules)
+	mux.HandleFunc("/api/v1/tags", h.handleTags)
 
 	// Export endpoints
 	mux.HandleFunc("/api/v1/exports", h.handleExports)

@@ -1,0 +1,148 @@
+# GraphQL Schema for GraphFS Knowledge Graph
+# Auto-generated from RDF knowledge graph
+# Do not edit manually
+
+schema {
+  query: Query
+}
+
+"""Represents a code module in the knowledge graph"""
+type Module {
+  """Unique identifier"""
+  id: ID!
+  
+  """URI identifier (e.g., <#main.go>)"""
+  uri: String!
+  
+  """Module name"""
+  name: String!
+  
+  """Module description"""
+  description: String
+  
+  """File path relative to root"""
+  path: String!
+  
+  """Programming language"""
+  language: String
+  
+  """Architectural layer"""
+  layer: String
+  
+  """Tags for categorization"""
+  tags: [String!]!
+  
+  """Modules this module depends on"""
+  dependencies: [Module!]!
+  
+  """Modules that depend on this module"""
+  dependents: [Module!]!
+  
+  """Exported symbols/functions"""
+  exports: [Export!]!
+}
+
+"""Represents an exported symbol from a module"""
+type Export {
+  """Export name"""
+  name: String!
+  
+  """Module that exports this symbol"""
+  module: Module!
+}
+
+"""Root query type"""
+type Query {
+  """Get a single module by name or path"""
+  module(name: String, path: String, uri: String): Module
+  
+  """List all modules with optional filtering"""
+  modules(
+    """Filter by programming language"""
+    language: String
+    
+    """Filter by architectural layer"""
+    layer: String
+    
+    """Filter by tag"""
+    tag: String
+    
+    """Maximum number of results"""
+    first: Int
+    
+    """Cursor for pagination"""
+    after: String
+  ): ModuleConnection!
+  
+  """Search modules by description"""
+  searchModules(query: String!): [Module!]!
+  
+  """Get graph statistics"""
+  stats: GraphStats!
+}
+
+"""Connection type for module pagination"""
+type ModuleConnection {
+  """List of module edges"""
+  edges: [ModuleEdge!]!
+  
+  """Pagination information"""
+  pageInfo: PageInfo!
+  
+  """Total count of modules"""
+  totalCount: Int!
+}
+
+"""Edge type for module connections"""
+type ModuleEdge {
+  """The module"""
+  node: Module!
+  
+  """Cursor for this edge"""
+  cursor: String!
+}
+
+"""Information about pagination"""
+type PageInfo {
+  """Whether there are more results"""
+  hasNextPage: Boolean!
+  
+  """Whether there are previous results"""
+  hasPreviousPage: Boolean!
+  
+  """Cursor of the first edge"""
+  startCursor: String
+  
+  """Cursor of the last edge"""
+  endCursor: String
+}
+
+"""Statistics about the knowledge graph"""
+type GraphStats {
+  """Total number of modules"""
+  totalModules: Int!
+  
+  """Total number of RDF triples"""
+  totalTriples: Int!
+  
+  """Total number of relationships"""
+  totalRelationships: Int!
+  
+  """Modules grouped by language"""
+  modulesByLanguage: [LanguageStats!]!
+  
+  """Modules grouped by layer"""
+  modulesByLayer: [LayerStats!]!
+}
+
+"""Module statistics by language"""
+type LanguageStats {
+  language: String!
+  count: Int!
+}
+
+"""Module statistics by layer"""
+type LayerStats {
+  layer: String!
+  count: Int!
+}
