@@ -1,0 +1,620 @@
+{
+  "modules": {
+    "examples/minimal-app/main.go": {
+      "Path": "examples/minimal-app/main.go",
+      "URI": "\u003c#main.go\u003e",
+      "Name": "main.go",
+      "Description": "Minimal GraphFS example application entry point",
+      "Language": "go",
+      "Layer": "",
+      "Tags": [
+        "entrypoint",
+        "example",
+        "demo"
+      ],
+      "Dependencies": [
+        "./services/user.go",
+        "./services/auth.go",
+        "./utils/logger.go",
+        "./models/user.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#main"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isEntryPoint": [
+          "true"
+        ]
+      }
+    },
+    "examples/minimal-app/models/user.go": {
+      "Path": "examples/minimal-app/models/user.go",
+      "URI": "\u003c#models/user.go\u003e",
+      "Name": "models/user.go",
+      "Description": "User data model and validation",
+      "Language": "go",
+      "Layer": "model",
+      "Tags": [
+        "model",
+        "data",
+        "user",
+        "domain"
+      ],
+      "Dependencies": [
+        "../utils/validator.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#User",
+        "#UserRole",
+        "#ValidateUser"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "examples/minimal-app/services/auth.go": {
+      "Path": "examples/minimal-app/services/auth.go",
+      "URI": "\u003c#auth.go\u003e",
+      "Name": "services/auth.go",
+      "Description": "Authentication and authorization service",
+      "Language": "go",
+      "Layer": "service",
+      "Tags": [
+        "security",
+        "authentication",
+        "authorization",
+        "service"
+      ],
+      "Dependencies": [
+        "../utils/crypto.go",
+        "../utils/logger.go",
+        "../models/user.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#AuthService",
+        "#NewAuthService"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/security/handlesCredentials": [
+          "true"
+        ],
+        "https://schema.codedoc.org/security/securityBoundary": [
+          "true"
+        ]
+      }
+    },
+    "examples/minimal-app/services/user.go": {
+      "Path": "examples/minimal-app/services/user.go",
+      "URI": "\u003c#services/user.go\u003e",
+      "Name": "services/user.go",
+      "Description": "User management service",
+      "Language": "go",
+      "Layer": "service",
+      "Tags": [
+        "service",
+        "user",
+        "crud",
+        "business-logic"
+      ],
+      "Dependencies": [
+        "./auth.go",
+        "../models/user.go",
+        "../utils/logger.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#UserService",
+        "#NewUserService"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/dependsOn": [
+          "./auth.go"
+        ]
+      }
+    },
+    "examples/minimal-app/utils/crypto.go": {
+      "Path": "examples/minimal-app/utils/crypto.go",
+      "URI": "\u003c#crypto.go\u003e",
+      "Name": "utils/crypto.go",
+      "Description": "Cryptographic utilities for secure operations",
+      "Language": "go",
+      "Layer": "utility",
+      "Tags": [
+        "utility",
+        "security",
+        "cryptography"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#CryptoHelper",
+        "#NewCryptoHelper"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isLeaf": [
+          "true"
+        ],
+        "https://schema.codedoc.org/security/handlesSensitiveData": [
+          "true"
+        ],
+        "https://schema.codedoc.org/security/securityBoundary": [
+          "true"
+        ]
+      }
+    },
+    "examples/minimal-app/utils/logger.go": {
+      "Path": "examples/minimal-app/utils/logger.go",
+      "URI": "\u003c#logger.go\u003e",
+      "Name": "utils/logger.go",
+      "Description": "Logging utility for structured logging",
+      "Language": "go",
+      "Layer": "utility",
+      "Tags": [
+        "utility",
+        "logging",
+        "observability"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#Logger",
+        "#NewLogger",
+        "#LogLevel"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isLeaf": [
+          "true"
+        ]
+      }
+    },
+    "examples/minimal-app/utils/validator.go": {
+      "Path": "examples/minimal-app/utils/validator.go",
+      "URI": "\u003c#utils/validator.go\u003e",
+      "Name": "utils/validator.go",
+      "Description": "Data validation utilities",
+      "Language": "go",
+      "Layer": "utility",
+      "Tags": [
+        "utility",
+        "validation",
+        "data-quality"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#ValidateEmail",
+        "#ValidationError",
+        "#NewValidationError",
+        "#PermissionError",
+        "#NewPermissionError"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isLeaf": [
+          "true"
+        ]
+      }
+    },
+    "internal/store/store.go": {
+      "Path": "internal/store/store.go",
+      "URI": "\u003c#store.go\u003e",
+      "Name": "internal/store/store.go",
+      "Description": "In-memory RDF triple store with multiple indexes",
+      "Language": "go",
+      "Layer": "storage",
+      "Tags": [
+        "store",
+        "rdf",
+        "triplestore",
+        "in-memory"
+      ],
+      "Dependencies": [
+        "./triple.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#TripleStore",
+        "#NewTripleStore"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "internal/store/triple.go": {
+      "Path": "internal/store/triple.go",
+      "URI": "\u003c#internal/store/triple.go\u003e",
+      "Name": "internal/store/triple.go",
+      "Description": "Triple data structure for RDF storage",
+      "Language": "go",
+      "Layer": "storage",
+      "Tags": [
+        "store",
+        "rdf",
+        "data-structure"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#Triple"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isLeaf": [
+          "true"
+        ]
+      }
+    },
+    "pkg/graph/graph.go": {
+      "Path": "pkg/graph/graph.go",
+      "URI": "\u003c#graph.go\u003e",
+      "Name": "pkg/graph/graph.go",
+      "Description": "Graph data structures for knowledge graph representation",
+      "Language": "go",
+      "Layer": "graph",
+      "Tags": [
+        "graph",
+        "knowledge-graph",
+        "data-structure"
+      ],
+      "Dependencies": [
+        "./builder.go",
+        "./module.go",
+        "../../internal/store/store.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#Graph",
+        "#GraphStats"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/graph/module.go": {
+      "Path": "pkg/graph/module.go",
+      "URI": "\u003c#module.go\u003e",
+      "Name": "pkg/graph/module.go",
+      "Description": "Module data structure for representing code modules",
+      "Language": "go",
+      "Layer": "graph",
+      "Tags": [
+        "graph",
+        "module",
+        "data-structure"
+      ],
+      "Dependencies": [
+        "./graph.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#Module"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/graph/validator.go": {
+      "Path": "pkg/graph/validator.go",
+      "URI": "\u003c#pkg/graph/validator.go\u003e",
+      "Name": "pkg/graph/validator.go",
+      "Description": "Graph validation implementation",
+      "Language": "go",
+      "Layer": "graph",
+      "Tags": [
+        "graph",
+        "validation",
+        "consistency"
+      ],
+      "Dependencies": [
+        "./graph.go",
+        "./module.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#Validator",
+        "#ValidationResult",
+        "#ValidationError",
+        "#ValidationWarning",
+        "#NewValidator"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/parser/parser.go": {
+      "Path": "pkg/parser/parser.go",
+      "URI": "\u003c#pkg/parser/parser.go\u003e",
+      "Name": "pkg/parser/parser.go",
+      "Description": "LinkedDoc+RDF parser implementation",
+      "Language": "go",
+      "Layer": "parser",
+      "Tags": [
+        "parser",
+        "rdf",
+        "turtle",
+        "linkeddoc"
+      ],
+      "Dependencies": [
+        "./triple.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#Parser",
+        "#NewParser",
+        "#ParseError"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/parser/triple.go": {
+      "Path": "pkg/parser/triple.go",
+      "URI": "\u003c#pkg/parser/triple.go\u003e",
+      "Name": "pkg/parser/triple.go",
+      "Description": "RDF triple data structure",
+      "Language": "go",
+      "Layer": "data",
+      "Tags": [
+        "parser",
+        "rdf",
+        "data-structure"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#Triple",
+        "#TripleObject",
+        "#LiteralObject",
+        "#URIObject",
+        "#BlankNodeObject"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isLeaf": [
+          "true"
+        ]
+      }
+    },
+    "pkg/query/executor.go": {
+      "Path": "pkg/query/executor.go",
+      "URI": "\u003c#executor.go\u003e",
+      "Name": "pkg/query/executor.go",
+      "Description": "SPARQL query executor",
+      "Language": "go",
+      "Layer": "query",
+      "Tags": [
+        "query",
+        "sparql",
+        "executor"
+      ],
+      "Dependencies": [
+        "./query.go",
+        "../../internal/store/store.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#Executor",
+        "#NewExecutor",
+        "#QueryResult"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/query/parser.go": {
+      "Path": "pkg/query/parser.go",
+      "URI": "\u003c#pkg/query/parser.go\u003e",
+      "Name": "pkg/query/parser.go",
+      "Description": "SPARQL query parser",
+      "Language": "go",
+      "Layer": "query",
+      "Tags": [
+        "query",
+        "sparql",
+        "parser"
+      ],
+      "Dependencies": [
+        "./query.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#ParseQuery"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/query/query.go": {
+      "Path": "pkg/query/query.go",
+      "URI": "\u003c#query.go\u003e",
+      "Name": "pkg/query/query.go",
+      "Description": "SPARQL query data structures",
+      "Language": "go",
+      "Layer": "query",
+      "Tags": [
+        "query",
+        "sparql",
+        "data-structure"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#Query",
+        "#SelectQuery",
+        "#TriplePattern",
+        "#Filter"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/scanner/ignore.go": {
+      "Path": "pkg/scanner/ignore.go",
+      "URI": "\u003c#ignore.go\u003e",
+      "Name": "pkg/scanner/ignore.go",
+      "Description": "Ignore pattern handling for filesystem scanning",
+      "Language": "go",
+      "Layer": "scanner",
+      "Tags": [
+        "scanner",
+        "ignore-patterns",
+        "filtering"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#IgnoreMatcher",
+        "#NewIgnoreMatcher",
+        "#DefaultIgnorePatterns"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    },
+    "pkg/scanner/language.go": {
+      "Path": "pkg/scanner/language.go",
+      "URI": "\u003c#language.go\u003e",
+      "Name": "pkg/scanner/language.go",
+      "Description": "Language detection for source files",
+      "Language": "go",
+      "Layer": "scanner",
+      "Tags": [
+        "scanner",
+        "language-detection",
+        "utility"
+      ],
+      "Dependencies": [],
+      "Dependents": [],
+      "Exports": [
+        "#Language",
+        "#DetectLanguage",
+        "#RegisterLanguage",
+        "#SupportedLanguages"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ],
+        "https://schema.codedoc.org/isLeaf": [
+          "true"
+        ]
+      }
+    },
+    "pkg/scanner/scanner.go": {
+      "Path": "pkg/scanner/scanner.go",
+      "URI": "\u003c#scanner.go\u003e",
+      "Name": "pkg/scanner/scanner.go",
+      "Description": "Filesystem scanner for GraphFS",
+      "Language": "go",
+      "Layer": "scanner",
+      "Tags": [
+        "scanner",
+        "filesystem",
+        "recursive"
+      ],
+      "Dependencies": [
+        "./language.go",
+        "./ignore.go",
+        "../parser/parser.go"
+      ],
+      "Dependents": [],
+      "Exports": [
+        "#Scanner",
+        "#NewScanner",
+        "#ScanOptions",
+        "#ScanResult",
+        "#FileInfo"
+      ],
+      "Calls": [],
+      "Properties": {
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": [
+          "https://schema.codedoc.org/Module"
+        ]
+      }
+    }
+  },
+  "root": "/Users/coolbeans/Development/dev/graphfs",
+  "statistics": {
+    "TotalModules": 20,
+    "TotalTriples": 507,
+    "TotalRelationships": 25,
+    "ModulesByLanguage": {
+      "go": 20
+    },
+    "ModulesByLayer": {
+      "data": 1,
+      "graph": 3,
+      "model": 1,
+      "parser": 1,
+      "query": 3,
+      "scanner": 3,
+      "service": 2,
+      "storage": 2,
+      "utility": 3
+    },
+    "BuildDuration": 6129750
+  }
+}
