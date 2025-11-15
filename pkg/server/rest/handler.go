@@ -34,7 +34,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/justin4957/graphfs/pkg/graph"
 )
@@ -146,17 +145,4 @@ func (h *Handler) filterModules(language, layer, tag string) []*graph.Module {
 	}
 
 	return filtered
-}
-
-// extractID extracts the ID from a URL path
-func extractID(path, prefix string) string {
-	path = strings.TrimPrefix(path, prefix)
-	path = strings.TrimPrefix(path, "/")
-
-	// Remove any subpaths (e.g., /dependencies)
-	if idx := strings.Index(path, "/"); idx != -1 {
-		path = path[:idx]
-	}
-
-	return path
 }
