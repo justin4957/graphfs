@@ -8,9 +8,10 @@ Welcome to GraphFS! This guide will help you get started with using GraphFS to b
 2. [Getting Started](#getting-started)
 3. [Adding LinkedDoc to Your Code](#adding-linkeddoc-to-your-code)
 4. [Writing SPARQL Queries](#writing-sparql-queries)
-5. [Common Use Cases](#common-use-cases)
-6. [Troubleshooting](#troubleshooting)
-7. [FAQ](#faq)
+5. [HTTP Server and API](#http-server-and-api)
+6. [Common Use Cases](#common-use-cases)
+7. [Troubleshooting](#troubleshooting)
+8. [FAQ](#faq)
 
 ## Installation
 
@@ -249,6 +250,237 @@ EOF
 
 # Execute from file
 graphfs query --file queries/my-query.sparql
+```
+
+## HTTP Server and API
+
+GraphFS can run as an HTTP server, exposing SPARQL query endpoints for remote access.
+
+### Starting the Server
+
+```bash
+# Start server on default port (8080)
+graphfs serve
+
+# Start on custom port
+graphfs serve --port 9000
+
+# Start on all interfaces
+graphfs serve --host 0.0.0.0 --port 8080
+```
+
+The server will:
+1. Scan your codebase and build the knowledge graph
+2. Keep the graph in memory
+3. Expose HTTP endpoints for querying
+
+### Available Endpoints
+
+#### GET/POST /sparql
+Execute SPARQL queries via HTTP.
+
+**GET Request:**
+```bash
+curl "http://localhost:8080/sparql?query=SELECT+*+WHERE+{+?s+?p+?o+}+LIMIT+10"
+```
+
+**POST Request (recommended for complex queries):**
+```bash
+curl -X POST http://localhost:8080/sparql \
+  -H "Content-Type: application/sparql-query" \
+  -d 'SELECT ?module ?description WHERE {
+    ?module <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://schema.codedoc.org/Module> .
+    ?module <https://schema.codedoc.org/description> ?description .
+  }'
+```
+
+**Query from file:**
+```bash
+curl -X POST http://localhost:8080/sparql \
+  -H "Content-Type: application/sparql-query" \
+  --data-binary @queries/list-all-modules.sparql
+```
+
+### Output Formats
+
+The server supports multiple output formats via the `Accept` header or `?format` parameter:
+
+#### JSON (default)
+```bash
+curl http://localhost:8080/sparql?query=...&format=json
+# or
+curl -H "Accept: application/sparql-results+json" http://localhost:8080/sparql?query=...
+```
+
+**Output:**
+```json
+{
+  "head": {
+    "vars": ["module", "description"]
+  },
+  "results": {
+    "bindings": [
+      {
+        "module": {
+          "type": "literal",
+          "value": "<#main.go>"
+        },
+        "description": {
+          "type": "literal",
+          "value": "Main application entry point"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### CSV
+```bash
+curl http://localhost:8080/sparql?query=...&format=csv
+```
+
+**Output:**
+```csv
+module,description
+<#main.go>,Main application entry point
+<#auth.go>,Authentication service
+```
+
+#### TSV (Tab-Separated Values)
+```bash
+curl http://localhost:8080/sparql?query=...&format=tsv
+```
+
+**Output:**
+```
+module	description
+<#main.go>	Main application entry point
+<#auth.go>	Authentication service
+```
+
+#### XML
+```bash
+curl http://localhost:8080/sparql?query=...&format=xml
+```
+
+**Output:**
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<sparql xmlns="http://www.w3.org/2005/sparql-results#">
+  <head>
+    <variable name="module"/>
+    <variable name="description"/>
+  </head>
+  <results>
+    <result>
+      <binding name="module">
+        <literal><#main.go></literal>
+      </binding>
+      <binding name="description">
+        <literal>Main application entry point</literal>
+      </binding>
+    </result>
+  </results>
+</sparql>
+```
+
+### CORS Support
+
+The server includes CORS (Cross-Origin Resource Sharing) support enabled by default, allowing web applications to query the API from different domains.
+
+### Health Check
+
+```bash
+curl http://localhost:8080/health
+```
+
+**Output:**
+```json
+{"status":"ok"}
+```
+
+### API Information
+
+```bash
+curl http://localhost:8080/
+```
+
+**Output:**
+```json
+{
+  "name": "GraphFS API",
+  "version": "0.2.0",
+  "endpoints": {
+    "sparql": {
+      "path": "/sparql",
+      "methods": ["GET", "POST"],
+      "description": "SPARQL query endpoint",
+      "formats": ["json", "csv", "tsv", "xml"]
+    },
+    "health": {
+      "path": "/health",
+      "methods": ["GET"],
+      "description": "Health check endpoint"
+    }
+  }
+}
+```
+
+### Integration Examples
+
+#### Python
+```python
+import requests
+
+# Query the GraphFS server
+response = requests.post(
+    'http://localhost:8080/sparql',
+    headers={'Content-Type': 'application/sparql-query'},
+    data='''
+        SELECT ?module ?description WHERE {
+            ?module <https://schema.codedoc.org/description> ?description .
+        }
+    '''
+)
+
+results = response.json()
+for binding in results['results']['bindings']:
+    print(f"{binding['module']['value']}: {binding['description']['value']}")
+```
+
+#### JavaScript/Node.js
+```javascript
+const fetch = require('node-fetch');
+
+async function queryGraphFS() {
+    const query = `
+        SELECT ?module ?description WHERE {
+            ?module <https://schema.codedoc.org/description> ?description .
+        }
+    `;
+
+    const response = await fetch('http://localhost:8080/sparql', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/sparql-query'},
+        body: query
+    });
+
+    const data = await response.json();
+    data.results.bindings.forEach(binding => {
+        console.log(`${binding.module.value}: ${binding.description.value}`);
+    });
+}
+
+queryGraphFS();
+```
+
+#### curl with jq for JSON processing
+```bash
+curl -s -X POST http://localhost:8080/sparql \
+  -H "Content-Type: application/sparql-query" \
+  -d 'SELECT ?module ?name WHERE { ?module <https://schema.codedoc.org/name> ?name }' \
+  | jq '.results.bindings[] | "\(.module.value): \(.name.value)"'
 ```
 
 ## Common Use Cases
