@@ -19,7 +19,7 @@ NewHandler
 @prefix code: <https://schema.codedoc.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<#server.go> a code:Module ;
+<#graphql-server.go> a code:Module ;
     code:name "pkg/server/graphql/server.go" ;
     code:description "GraphQL HTTP server for GraphFS" ;
     code:language "go" ;
