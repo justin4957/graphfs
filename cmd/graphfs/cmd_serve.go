@@ -135,6 +135,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		EnableCORS:       viper.GetBool("server.cors"),
 		EnableGraphQL:    true,
 		EnablePlayground: true,
+		EnableREST:       true,
 	}
 
 	// Create and start server with GraphQL support

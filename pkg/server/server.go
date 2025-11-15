@@ -42,6 +42,7 @@ import (
 	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/query"
 	graphqlserver "github.com/justin4957/graphfs/pkg/server/graphql"
+	restserver "github.com/justin4957/graphfs/pkg/server/rest"
 )
 
 // Config holds server configuration
@@ -53,6 +54,7 @@ type Config struct {
 	EnableCORS       bool
 	EnableGraphQL    bool
 	EnablePlayground bool
+	EnableREST       bool
 }
 
 // DefaultConfig returns default server configuration
@@ -65,6 +67,7 @@ func DefaultConfig() *Config {
 		EnableCORS:       true,
 		EnableGraphQL:    true,
 		EnablePlayground: true,
+		EnableREST:       true,
 	}
 }
 
@@ -121,6 +124,12 @@ func (s *Server) Start() error {
 		mux.Handle("/graphql", graphqlHandler)
 	}
 
+	// REST API endpoints (if enabled and graph is available)
+	if s.config.EnableREST && s.graph != nil {
+		restHandler := restserver.NewHandler(s.graph, s.config.EnableCORS)
+		restHandler.RegisterRoutes(mux)
+	}
+
 	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -145,6 +154,9 @@ func (s *Server) Start() error {
 		if s.config.EnablePlayground {
 			log.Printf("GraphQL Playground: http://%s/graphql", addr)
 		}
+	}
+	if s.config.EnableREST && s.graph != nil {
+		log.Printf("REST API: http://%s/api/v1", addr)
 	}
 
 	return s.server.ListenAndServe()
@@ -186,6 +198,22 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
       "methods": ["GET", "POST"],
       "description": "GraphQL query endpoint",
       "playground": ` + fmt.Sprintf("%v", s.config.EnablePlayground) + `
+    }`
+	}
+
+	if s.config.EnableREST && s.graph != nil {
+		endpoints += `,
+    "rest": {
+      "path": "/api/v1",
+      "methods": ["GET"],
+      "description": "RESTful API for common queries",
+      "endpoints": {
+        "modules": "/api/v1/modules",
+        "search": "/api/v1/modules/search?q=query",
+        "stats": "/api/v1/analysis/stats",
+        "tags": "/api/v1/tags",
+        "exports": "/api/v1/exports"
+      }
     }`
 	}
 
