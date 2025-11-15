@@ -42,6 +42,14 @@ import (
 	"github.com/justin4957/graphfs/pkg/graph"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const (
+	// graphContextKey is the context key for storing the graph
+	graphContextKey contextKey = "graph"
+)
+
 // Resolver handles GraphQL query resolution
 type Resolver struct {
 	graph *graph.Graph
@@ -55,7 +63,7 @@ func NewResolver(g *graph.Graph) *Resolver {
 // Module resolves the module query
 func (r *Resolver) Module(p graphql.ResolveParams) (interface{}, error) {
 	// Add graph to context for nested resolvers
-	ctx := context.WithValue(p.Context, "graph", r.graph)
+	ctx := context.WithValue(p.Context, graphContextKey, r.graph)
 	p.Context = ctx
 
 	// Get arguments
@@ -92,7 +100,7 @@ func (r *Resolver) Module(p graphql.ResolveParams) (interface{}, error) {
 // Modules resolves the modules query with filtering and pagination
 func (r *Resolver) Modules(p graphql.ResolveParams) (interface{}, error) {
 	// Add graph to context for nested resolvers
-	ctx := context.WithValue(p.Context, "graph", r.graph)
+	ctx := context.WithValue(p.Context, graphContextKey, r.graph)
 	p.Context = ctx
 
 	// Get filter arguments
@@ -177,7 +185,7 @@ func (r *Resolver) Modules(p graphql.ResolveParams) (interface{}, error) {
 // SearchModules resolves the searchModules query
 func (r *Resolver) SearchModules(p graphql.ResolveParams) (interface{}, error) {
 	// Add graph to context for nested resolvers
-	ctx := context.WithValue(p.Context, "graph", r.graph)
+	ctx := context.WithValue(p.Context, graphContextKey, r.graph)
 	p.Context = ctx
 
 	query, ok := p.Args["query"].(string)

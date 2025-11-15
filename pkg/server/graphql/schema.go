@@ -403,7 +403,7 @@ func initTypes() {
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 			if module, ok := p.Source.(*graph.Module); ok {
 				// Get graph from context
-				if g, ok := p.Context.Value("graph").(*graph.Graph); ok {
+				if g, ok := p.Context.Value(graphContextKey).(*graph.Graph); ok {
 					var deps []*graph.Module
 					for _, depPath := range module.Dependencies {
 						if depMod := g.GetModule(depPath); depMod != nil {
@@ -423,7 +423,7 @@ func initTypes() {
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 			if module, ok := p.Source.(*graph.Module); ok {
 				// Get graph from context
-				if g, ok := p.Context.Value("graph").(*graph.Graph); ok {
+				if g, ok := p.Context.Value(graphContextKey).(*graph.Graph); ok {
 					var deps []*graph.Module
 					for _, depPath := range module.Dependents {
 						if depMod := g.GetModule(depPath); depMod != nil {

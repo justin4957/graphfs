@@ -83,7 +83,7 @@ func TestModuleQuery(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -126,7 +126,7 @@ func TestModulesQuery(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -170,7 +170,7 @@ func TestModulesQueryWithFilter(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -225,7 +225,7 @@ func TestModulesQueryWithPagination(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -269,7 +269,7 @@ func TestSearchModulesQuery(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -317,7 +317,7 @@ func TestStatsQuery(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -364,7 +364,7 @@ func TestDependenciesQuery(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
@@ -401,7 +401,7 @@ func TestExportsQuery(t *testing.T) {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		Context:       context.WithValue(context.Background(), "graph", g),
+		Context:       context.WithValue(context.Background(), graphContextKey, g),
 	})
 
 	if len(result.Errors) > 0 {
