@@ -92,6 +92,8 @@ GraphFS scans your codebase and:
 
 ## 💡 Key Use Cases
 
+![](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExOTJlcnBqanQwZmdieGNzcXlpczE1NXl3dG94YTZlYTEzNndoMXkxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/HdAU3C49OtFKw/giphy.gif)
+
 ### 1. Intelligent Code Navigation
 
 ```sparql
