@@ -70,7 +70,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 	// Determine target path
 	targetPath := "."
 	buildOpts := graph.BuildOptions{
-		Validate:       true,
+		Validate:       false, // Don't validate - test files may have duplicate URIs
 		ReportProgress: false,
 	}
 
