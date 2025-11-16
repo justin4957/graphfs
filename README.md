@@ -240,7 +240,7 @@ graphfs/
 
 ### Phase 3: Analysis Tools (Weeks 5-6)
 - [x] Dependency graph analysis (topological sort, shortest path, SCCs, transitive deps)
-- [ ] Impact analysis engine
+- [x] Impact analysis engine (risk assessment, transitive impact, recommendations)
 - [ ] Architecture rule validation
 - [ ] Dead code detection
 - [ ] Circular dependency detection
