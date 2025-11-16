@@ -2,14 +2,13 @@
 
 Graph File System, pronounced jr-af 
 
-
-![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNjB2bGdvOGZubGthaG12azAzMG93cW5mOWthanY0ZjdwZ3I2Y3pidiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/HnYWNVA412Qd75WY49/giphy.gif)
-
 > Transform your codebase into a queryable knowledge graph using LinkedDoc+RDF metadata
 
 GraphFS is a filesystem-aware toolkit that parses RDF/Turtle documentation embedded in source code and exposes it as a semantic graph queryable via SPARQL and GraphQL. It turns implicit code relationships into explicit, navigable, and analyzable knowledge.
 
 ## 🎯 Vision
+
+![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNjB2bGdvOGZubGthaG12azAzMG93cW5mOWthanY0ZjdwZ3I2Y3pidiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/HnYWNVA412Qd75WY49/giphy.gif)
 
 **From file-based thinking → concept-based thinking**
 
