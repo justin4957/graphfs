@@ -1,10 +1,14 @@
 # GraphFS - Semantic Code Filesystem Toolkit
 
+Graph File System, pronounced jr-afs
+
 > Transform your codebase into a queryable knowledge graph using LinkedDoc+RDF metadata
 
 GraphFS is a filesystem-aware toolkit that parses RDF/Turtle documentation embedded in source code and exposes it as a semantic graph queryable via SPARQL and GraphQL. It turns implicit code relationships into explicit, navigable, and analyzable knowledge.
 
 ## 🎯 Vision
+
+![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNjB2bGdvOGZubGthaG12azAzMG93cW5mOWthanY0ZjdwZ3I2Y3pidiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/HnYWNVA412Qd75WY49/giphy.gif)
 
 **From file-based thinking → concept-based thinking**
 
@@ -91,6 +95,8 @@ GraphFS scans your codebase and:
 5. **Exposes** query interfaces (SPARQL, GraphQL, REST)
 
 ## 💡 Key Use Cases
+
+https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExOTJlcnBqanQwZmdieGNzcXlpczE1NXl3dG94YTZlYTEzNndoMXkxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/HdAU3C49OtFKw/giphy.gif
 
 ### 1. Intelligent Code Navigation
 
@@ -435,7 +441,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+GNU Affero General Public License v3.0 (AGPL-3.0) - see [LICENSE](LICENSE) for details.
+
+GraphFS is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 
 ## 🌟 Inspiration
 
