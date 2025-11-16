@@ -1,6 +1,6 @@
 # GraphFS - Semantic Code Filesystem Toolkit
 
-Graph File System, pronounced jr-af 
+Graph File System, pronounced jr-afs
 
 > Transform your codebase into a queryable knowledge graph using LinkedDoc+RDF metadata
 
