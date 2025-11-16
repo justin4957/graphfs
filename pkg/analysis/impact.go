@@ -269,7 +269,7 @@ func (ia *ImpactAnalysis) findCriticalPaths(result *ImpactResult) {
 	// Find shortest paths from target to critical modules
 	for _, criticalModule := range criticalModules {
 		path := ShortestPath(ia.graph, criticalModule, result.TargetModule)
-		if path != nil && len(path) > 1 {
+		if len(path) > 1 {
 			result.CriticalPaths = append(result.CriticalPaths, path)
 		}
 	}
