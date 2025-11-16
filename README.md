@@ -233,7 +233,7 @@ graphfs/
 - [x] CLI interactive mode (REPL)
 
 ### Phase 3: Analysis Tools (Weeks 5-6)
-- [ ] Dependency graph analysis
+- [x] Dependency graph analysis (topological sort, shortest path, SCCs, transitive deps)
 - [ ] Impact analysis engine
 - [ ] Architecture rule validation
 - [ ] Dead code detection
