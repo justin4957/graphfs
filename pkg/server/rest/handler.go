@@ -35,6 +35,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/justin4957/graphfs/pkg/cache"
 	"github.com/justin4957/graphfs/pkg/graph"
 )
 
@@ -69,6 +70,100 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	// Export endpoints
 	mux.HandleFunc("/api/v1/exports", h.handleExports)
+}
+
+// RegisterRoutesWithCache registers all REST API routes with caching
+func (h *Handler) RegisterRoutesWithCache(mux *http.ServeMux, c *cache.Cache) {
+	// Import the server package type
+	cacheMiddleware := func(next http.HandlerFunc) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip caching for non-GET requests
+			if r.Method != http.MethodGet {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Generate cache key
+			cacheKey := cache.GenerateKey(r.URL.Path, r.URL.RawQuery)
+
+			// Check cache
+			if cached, found := c.Get(cacheKey); found {
+				// Write cached response
+				if cachedResp, ok := cached.(map[string]interface{}); ok {
+					if headers, ok := cachedResp["headers"].(http.Header); ok {
+						for key, values := range headers {
+							for _, value := range values {
+								w.Header().Add(key, value)
+							}
+						}
+					}
+					w.Header().Set("X-Cache", "HIT")
+					if statusCode, ok := cachedResp["statusCode"].(int); ok {
+						w.WriteHeader(statusCode)
+					}
+					if body, ok := cachedResp["body"].([]byte); ok {
+						w.Write(body)
+					}
+					return
+				}
+			}
+
+			// Cache miss - capture response
+			recorder := &responseRecorder{
+				ResponseWriter: w,
+				statusCode:     http.StatusOK,
+				body:           make([]byte, 0),
+			}
+
+			// Set cache miss header before executing handler
+			recorder.Header().Set("X-Cache", "MISS")
+
+			next.ServeHTTP(recorder, r)
+
+			// Cache successful responses
+			if recorder.statusCode == http.StatusOK {
+				cachedResp := map[string]interface{}{
+					"statusCode": recorder.statusCode,
+					"headers":    recorder.Header().Clone(),
+					"body":       recorder.body,
+				}
+				c.Set(cacheKey, cachedResp, int64(len(recorder.body)))
+			}
+		})
+	}
+
+	// Module endpoints with caching
+	mux.Handle("/api/v1/modules/search", cacheMiddleware(h.handleModulesSearch))
+	mux.Handle("/api/v1/modules/", cacheMiddleware(h.handleModulesWithID))
+	mux.Handle("/api/v1/modules", cacheMiddleware(h.handleModules))
+
+	// Analysis endpoints with caching
+	mux.Handle("/api/v1/analysis/stats", cacheMiddleware(h.handleAnalysisStats))
+	mux.Handle("/api/v1/analysis/impact/", cacheMiddleware(h.handleAnalysisImpact))
+
+	// Tag endpoints with caching
+	mux.Handle("/api/v1/tags/", cacheMiddleware(h.handleTagModules))
+	mux.Handle("/api/v1/tags", cacheMiddleware(h.handleTags))
+
+	// Export endpoints with caching
+	mux.Handle("/api/v1/exports", cacheMiddleware(h.handleExports))
+}
+
+// responseRecorder captures the HTTP response
+type responseRecorder struct {
+	http.ResponseWriter
+	statusCode int
+	body       []byte
+}
+
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	r.body = append(r.body, b...)
+	return r.ResponseWriter.Write(b)
 }
 
 // writeJSON writes a JSON response

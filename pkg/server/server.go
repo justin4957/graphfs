@@ -39,6 +39,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/justin4957/graphfs/pkg/cache"
 	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/query"
 	graphqlserver "github.com/justin4957/graphfs/pkg/server/graphql"
@@ -55,6 +56,9 @@ type Config struct {
 	EnableGraphQL    bool
 	EnablePlayground bool
 	EnableREST       bool
+	EnableCache      bool
+	CacheMaxEntries  int
+	CacheTTL         time.Duration
 }
 
 // DefaultConfig returns default server configuration
@@ -68,6 +72,9 @@ func DefaultConfig() *Config {
 		EnableGraphQL:    true,
 		EnablePlayground: true,
 		EnableREST:       true,
+		EnableCache:      true,
+		CacheMaxEntries:  1000,
+		CacheTTL:         5 * time.Minute,
 	}
 }
 
@@ -77,6 +84,7 @@ type Server struct {
 	executor *query.Executor
 	graph    *graph.Graph
 	server   *http.Server
+	cache    *cache.Cache
 }
 
 // NewServer creates a new HTTP server
@@ -85,10 +93,17 @@ func NewServer(config *Config, executor *query.Executor) *Server {
 		config = DefaultConfig()
 	}
 
-	return &Server{
+	s := &Server{
 		config:   config,
 		executor: executor,
 	}
+
+	// Initialize cache if enabled
+	if config.EnableCache {
+		s.cache = cache.NewCache(config.CacheMaxEntries, config.CacheTTL)
+	}
+
+	return s
 }
 
 // NewServerWithGraph creates a new HTTP server with graph for GraphQL support
@@ -97,11 +112,18 @@ func NewServerWithGraph(config *Config, executor *query.Executor, g *graph.Graph
 		config = DefaultConfig()
 	}
 
-	return &Server{
+	s := &Server{
 		config:   config,
 		executor: executor,
 		graph:    g,
 	}
+
+	// Initialize cache if enabled
+	if config.EnableCache {
+		s.cache = cache.NewCache(config.CacheMaxEntries, config.CacheTTL)
+	}
+
+	return s
 }
 
 // Start starts the HTTP server
@@ -110,7 +132,11 @@ func (s *Server) Start() error {
 
 	// SPARQL endpoint
 	sparqlHandler := NewSPARQLHandler(s.executor, s.config.EnableCORS)
-	mux.Handle("/sparql", sparqlHandler)
+	if s.config.EnableCache && s.cache != nil {
+		mux.Handle("/sparql", CacheMiddleware(sparqlHandler, s.cache))
+	} else {
+		mux.Handle("/sparql", sparqlHandler)
+	}
 
 	// GraphQL endpoint (if enabled and graph is available)
 	if s.config.EnableGraphQL && s.graph != nil {
@@ -121,13 +147,22 @@ func (s *Server) Start() error {
 		if err != nil {
 			return fmt.Errorf("failed to create GraphQL handler: %w", err)
 		}
-		mux.Handle("/graphql", graphqlHandler)
+
+		if s.config.EnableCache && s.cache != nil {
+			mux.Handle("/graphql", CacheMiddleware(graphqlHandler, s.cache))
+		} else {
+			mux.Handle("/graphql", graphqlHandler)
+		}
 	}
 
 	// REST API endpoints (if enabled and graph is available)
 	if s.config.EnableREST && s.graph != nil {
 		restHandler := restserver.NewHandler(s.graph, s.config.EnableCORS)
-		restHandler.RegisterRoutes(mux)
+		if s.config.EnableCache && s.cache != nil {
+			restHandler.RegisterRoutesWithCache(mux, s.cache)
+		} else {
+			restHandler.RegisterRoutes(mux)
+		}
 	}
 
 	// Health check endpoint
@@ -135,6 +170,11 @@ func (s *Server) Start() error {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	// Cache stats endpoint (if cache is enabled)
+	if s.config.EnableCache && s.cache != nil {
+		mux.HandleFunc("/cache/stats", s.handleCacheStats)
+	}
 
 	// Root endpoint with API info
 	mux.HandleFunc("/", s.handleRoot)
@@ -157,6 +197,10 @@ func (s *Server) Start() error {
 	}
 	if s.config.EnableREST && s.graph != nil {
 		log.Printf("REST API: http://%s/api/v1", addr)
+	}
+	if s.config.EnableCache && s.cache != nil {
+		log.Printf("Cache enabled: %d max entries, %v TTL", s.config.CacheMaxEntries, s.config.CacheTTL)
+		log.Printf("Cache stats: http://%s/cache/stats", addr)
 	}
 
 	return s.server.ListenAndServe()
@@ -227,4 +271,34 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 }`
 
 	w.Write([]byte(endpoints))
+}
+
+// handleCacheStats provides cache statistics
+func (s *Server) handleCacheStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.cache == nil {
+		http.Error(w, "Cache not enabled", http.StatusNotFound)
+		return
+	}
+
+	stats := s.cache.Stats()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := fmt.Sprintf(`{
+  "hits": %d,
+  "misses": %d,
+  "evictions": %d,
+  "size": %d,
+  "maxSize": %d,
+  "totalBytes": %d,
+  "hitRate": %.4f
+}`, stats.Hits, stats.Misses, stats.Evictions, stats.Size, stats.MaxSize, stats.TotalBytes, stats.HitRate)
+
+	w.Write([]byte(response))
 }
