@@ -30,16 +30,16 @@ Shows:
 
 Examples:
   # Analyze impact of a single module
-  graphfs impact services/auth.go
+  graphfs impact pkg/graph/graph.go
 
   # Analyze impact of multiple modules
-  graphfs impact --modules services/auth.go,services/session.go
+  graphfs impact --modules pkg/graph/graph.go,pkg/graph/builder.go
 
   # Compare impacts of multiple modules
-  graphfs impact --compare --modules services/auth.go,services/payment.go
+  graphfs impact --compare --modules pkg/graph/graph.go,pkg/analysis/impact.go
 
   # Output as JSON
-  graphfs impact services/auth.go --format json`,
+  graphfs impact pkg/graph/graph.go --format json`,
 	RunE: runImpact,
 }
 
