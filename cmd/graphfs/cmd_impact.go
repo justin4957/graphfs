@@ -191,7 +191,7 @@ func printImpactText(result *analysis.ImpactResult) error {
 	if result.BreakingChanges {
 		color.New(color.FgRed).Printf(" ⚠️  BREAKING CHANGES")
 	}
-	fmt.Println("\n")
+	fmt.Println()
 
 	// Impact Summary
 	yellow.Println("Impact Summary:")
