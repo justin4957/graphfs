@@ -136,6 +136,9 @@ func runServe(cmd *cobra.Command, args []string) error {
 		EnableGraphQL:    true,
 		EnablePlayground: true,
 		EnableREST:       true,
+		EnableCache:      true,
+		CacheMaxEntries:  1000,
+		CacheTTL:         5 * time.Minute,
 	}
 
 	// Create and start server with GraphQL support
