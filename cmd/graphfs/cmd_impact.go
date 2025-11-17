@@ -8,6 +8,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/justin4957/graphfs/pkg/analysis"
 	"github.com/justin4957/graphfs/pkg/graph"
+	"github.com/justin4957/graphfs/pkg/viz"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +16,7 @@ var (
 	impactModules []string
 	impactFormat  string
 	impactCompare bool
+	impactViz     string
 )
 
 var impactCmd = &cobra.Command{
@@ -52,6 +54,7 @@ func init() {
 	impactCmd.Flags().StringSliceVarP(&impactModules, "modules", "m", nil, "Comma-separated list of modules to analyze")
 	impactCmd.Flags().StringVarP(&impactFormat, "format", "f", "text", "Output format (text, json)")
 	impactCmd.Flags().BoolVarP(&impactCompare, "compare", "c", false, "Compare impacts of multiple modules")
+	impactCmd.Flags().StringVar(&impactViz, "viz", "", "Generate visualization (e.g., impact.svg)")
 }
 
 func runImpact(cmd *cobra.Command, args []string) error {
@@ -91,20 +94,29 @@ func runImpact(cmd *cobra.Command, args []string) error {
 
 	// Perform analysis
 	if impactCompare && len(modulesToAnalyze) > 1 {
-		return runCompareImpacts(ia, modulesToAnalyze)
+		return runCompareImpacts(ia, g, modulesToAnalyze)
 	}
 
 	if len(modulesToAnalyze) == 1 {
-		return runSingleImpact(ia, modulesToAnalyze[0])
+		return runSingleImpact(ia, g, modulesToAnalyze[0])
 	}
 
-	return runMultipleImpact(ia, modulesToAnalyze)
+	return runMultipleImpact(ia, g, modulesToAnalyze)
 }
 
-func runSingleImpact(ia *analysis.ImpactAnalysis, modulePath string) error {
+func runSingleImpact(ia *analysis.ImpactAnalysis, g *graph.Graph, modulePath string) error {
 	result, err := ia.AnalyzeImpact(modulePath)
 	if err != nil {
 		return fmt.Errorf("impact analysis failed: %w", err)
+	}
+
+	// Generate visualization if requested
+	if impactViz != "" {
+		if err := generateImpactVisualization(g, result, impactViz); err != nil {
+			color.Yellow("Warning: failed to generate visualization: %v\n", err)
+		} else {
+			color.Green("✓ Visualization saved to %s\n\n", impactViz)
+		}
 	}
 
 	if impactFormat == "json" {
@@ -114,7 +126,23 @@ func runSingleImpact(ia *analysis.ImpactAnalysis, modulePath string) error {
 	return printImpactText(result)
 }
 
-func runMultipleImpact(ia *analysis.ImpactAnalysis, modules []string) error {
+func generateImpactVisualization(g *graph.Graph, result *analysis.ImpactResult, output string) error {
+	vizOpts := viz.VizOptions{
+		Type:    viz.VizImpact,
+		Impact:  result,
+		Rankdir: "LR",
+		Title:   fmt.Sprintf("Impact Analysis: %s", result.TargetModule),
+	}
+
+	renderOpts := viz.RenderOptions{
+		VizOptions: vizOpts,
+		Output:     output,
+	}
+
+	return viz.RenderToFile(g, renderOpts)
+}
+
+func runMultipleImpact(ia *analysis.ImpactAnalysis, g *graph.Graph, modules []string) error {
 	result, err := ia.AnalyzeMultipleModules(modules)
 	if err != nil {
 		return fmt.Errorf("impact analysis failed: %w", err)
@@ -133,7 +161,7 @@ func runMultipleImpact(ia *analysis.ImpactAnalysis, modules []string) error {
 	return printImpactText(result)
 }
 
-func runCompareImpacts(ia *analysis.ImpactAnalysis, modules []string) error {
+func runCompareImpacts(ia *analysis.ImpactAnalysis, g *graph.Graph, modules []string) error {
 	results, err := ia.CompareImpacts(modules)
 	if err != nil {
 		return fmt.Errorf("comparison failed: %w", err)
