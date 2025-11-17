@@ -284,7 +284,12 @@ func (dg *DOTGenerator) generateSecurityGraph() {
 
 		dg.builder.WriteString(fmt.Sprintf("  // Zone: %s\n", zone))
 		dg.builder.WriteString(fmt.Sprintf("  subgraph cluster_%d {\n", idx))
-		dg.builder.WriteString(fmt.Sprintf("    label=\"%s Zone\";\n", strings.Title(string(zone))))
+		// Capitalize first letter of zone name
+		zoneName := string(zone)
+		if len(zoneName) > 0 {
+			zoneName = strings.ToUpper(zoneName[:1]) + zoneName[1:]
+		}
+		dg.builder.WriteString(fmt.Sprintf("    label=\"%s Zone\";\n", zoneName))
 		dg.builder.WriteString("    style=filled;\n")
 		dg.builder.WriteString(fmt.Sprintf("    fillcolor=\"%s30\";\n", zoneColors[zone])) // 30 = transparency
 		dg.builder.WriteString(fmt.Sprintf("    color=\"%s\";\n\n", zoneColors[zone]))
