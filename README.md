@@ -242,7 +242,7 @@ graphfs/
 - [x] Dependency graph analysis (topological sort, shortest path, SCCs, transitive deps)
 - [x] Impact analysis engine (risk assessment, transitive impact, recommendations)
 - [x] Architecture rule validation
-- [ ] Dead code detection
+- [x] Dead code detection
 - [ ] Circular dependency detection
 - [ ] Security boundary analysis
 
