@@ -49,11 +49,11 @@ type Rule struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description"`
 	Severity    Severity `yaml:"severity"`
-	Pattern     string   `yaml:"pattern"`     // SPARQL query
-	Expect      int      `yaml:"expect"`      // Expected result count
-	Enabled     bool     `yaml:"enabled"`     // Whether rule is enabled
-	Tags        []string `yaml:"tags"`        // Rule tags for filtering
-	Suggestion  string   `yaml:"suggestion"`  // Default suggestion for violations
+	Pattern     string   `yaml:"pattern"`    // SPARQL query
+	Expect      int      `yaml:"expect"`     // Expected result count
+	Enabled     bool     `yaml:"enabled"`    // Whether rule is enabled
+	Tags        []string `yaml:"tags"`       // Rule tags for filtering
+	Suggestion  string   `yaml:"suggestion"` // Default suggestion for violations
 }
 
 // Violation represents a rule violation
@@ -69,15 +69,15 @@ type Violation struct {
 
 // ValidationResult contains the results of rule validation
 type ValidationResult struct {
-	Violations   []Violation   // All violations found
-	PassedRules  []*Rule       // Rules that passed
-	FailedRules  []*Rule       // Rules that failed
-	SkippedRules []*Rule       // Rules that were skipped
-	TotalRules   int           // Total number of rules evaluated
-	ErrorCount   int           // Number of error-level violations
-	WarningCount int           // Number of warning-level violations
-	InfoCount    int           // Number of info-level violations
-	Duration     int64         // Execution duration in milliseconds
+	Violations   []Violation // All violations found
+	PassedRules  []*Rule     // Rules that passed
+	FailedRules  []*Rule     // Rules that failed
+	SkippedRules []*Rule     // Rules that were skipped
+	TotalRules   int         // Total number of rules evaluated
+	ErrorCount   int         // Number of error-level violations
+	WarningCount int         // Number of warning-level violations
+	InfoCount    int         // Number of info-level violations
+	Duration     int64       // Execution duration in milliseconds
 }
 
 // RuleSet represents a collection of rules

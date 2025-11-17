@@ -261,11 +261,11 @@ func (r *Reporter) formatJUnit(result *ValidationResult) string {
 	}
 
 	type testCase struct {
-		XMLName   xml.Name       `xml:"testcase"`
-		Name      string         `xml:"name,attr"`
-		ClassName string         `xml:"classname,attr"`
-		Time      float64        `xml:"time,attr"`
-		Failure   *junitFailure  `xml:"failure,omitempty"`
+		XMLName   xml.Name      `xml:"testcase"`
+		Name      string        `xml:"name,attr"`
+		ClassName string        `xml:"classname,attr"`
+		Time      float64       `xml:"time,attr"`
+		Failure   *junitFailure `xml:"failure,omitempty"`
 	}
 
 	type testSuite struct {
