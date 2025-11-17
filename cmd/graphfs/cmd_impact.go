@@ -29,17 +29,20 @@ Shows:
 - Recommendations for safe changes
 
 Examples:
+  # From the examples/minimal-app directory:
+  cd examples/minimal-app
+
   # Analyze impact of a single module
-  graphfs impact pkg/graph/graph.go
+  graphfs impact services/auth.go
 
   # Analyze impact of multiple modules
-  graphfs impact --modules pkg/graph/graph.go,pkg/graph/builder.go
+  graphfs impact --modules services/auth.go,services/user.go
 
   # Compare impacts of multiple modules
-  graphfs impact --compare --modules pkg/graph/graph.go,pkg/analysis/impact.go
+  graphfs impact --compare --modules utils/crypto.go,utils/logger.go,utils/validator.go
 
   # Output as JSON
-  graphfs impact pkg/graph/graph.go --format json`,
+  graphfs impact services/auth.go --format json`,
 	RunE: runImpact,
 }
 
