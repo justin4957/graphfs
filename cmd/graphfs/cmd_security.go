@@ -8,12 +8,14 @@ import (
 	"github.com/justin4957/graphfs/pkg/analysis"
 	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/scanner"
+	"github.com/justin4957/graphfs/pkg/viz"
 	"github.com/spf13/cobra"
 )
 
 var (
 	securityStrict bool
 	securityTarget string
+	securityViz    string
 )
 
 var securityCmd = &cobra.Command{
@@ -50,6 +52,8 @@ func init() {
 		"Strict mode - flag all high-risk crossings")
 	securityCmd.Flags().StringVarP(&securityTarget, "target", "t", ".",
 		"Target directory to analyze")
+	securityCmd.Flags().StringVar(&securityViz, "viz", "",
+		"Generate visualization (e.g., security.svg)")
 }
 
 func runSecurity(cmd *cobra.Command, args []string) error {
@@ -223,6 +227,29 @@ func runSecurity(cmd *cobra.Command, args []string) error {
 			fmt.Printf("  • %s\n", rec)
 		}
 		fmt.Println()
+	}
+
+	// Generate visualization if requested
+	if securityViz != "" {
+		gray.Printf("\nGenerating security visualization...\n")
+		vizOpts := viz.VizOptions{
+			Type:     viz.VizSecurity,
+			Security: result,
+			Rankdir:  "LR",
+			Title:    "Security Boundary Analysis",
+		}
+
+		renderOpts := viz.RenderOptions{
+			VizOptions: vizOpts,
+			Output:     securityViz,
+		}
+
+		if err := viz.RenderToFile(g, renderOpts); err != nil {
+			yellow := color.New(color.FgYellow)
+			yellow.Printf("Warning: failed to generate visualization: %v\n", err)
+		} else {
+			green.Printf("✓ Visualization saved to %s\n\n", securityViz)
+		}
 	}
 
 	// Summary
