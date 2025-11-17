@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/justin4957/graphfs/pkg/analysis"
@@ -39,10 +41,12 @@ Visualization Types:
   • layer      - Layer-based grouping
 
 Output Formats:
-  • dot - DOT source file (default)
-  • svg - SVG vector graphics (requires graphviz)
-  • png - PNG raster graphics (requires graphviz)
-  • pdf - PDF document (requires graphviz)
+  • dot     - DOT source file (default)
+  • svg     - SVG vector graphics (requires graphviz)
+  • png     - PNG raster graphics (requires graphviz)
+  • pdf     - PDF document (requires graphviz)
+  • mermaid - Mermaid diagram syntax (.mmd)
+  • md      - Mermaid embedded in Markdown
 
 Color Schemes:
   • language - Color by programming language
@@ -70,7 +74,13 @@ Examples:
   graphfs viz --type security --output security.pdf
 
   # With title and labels
-  graphfs viz --type dependency --title "My Project" --labels --output graph.svg`,
+  graphfs viz --type dependency --title "My Project" --labels --output graph.svg
+
+  # Generate Mermaid diagram
+  graphfs viz --format mermaid --type dependency --output deps.mmd
+
+  # Mermaid embedded in Markdown
+  graphfs viz --format md --type dependency --title "Architecture" --output README.md`,
 	RunE: runViz,
 }
 
@@ -86,7 +96,7 @@ func init() {
 	vizCmd.Flags().StringVarP(&vizColorBy, "color-by", "c", "default",
 		"Color scheme (language, layer, default)")
 	vizCmd.Flags().StringVarP(&vizFormat, "format", "f", "",
-		"Output format (dot, svg, png, pdf) - auto-detected from extension")
+		"Output format (dot, svg, png, pdf, mermaid, md) - auto-detected from extension")
 	vizCmd.Flags().StringVar(&vizTitle, "title", "",
 		"Graph title")
 	vizCmd.Flags().BoolVar(&vizShowLabels, "labels", false,
@@ -200,37 +210,92 @@ func runViz(cmd *cobra.Command, args []string) error {
 	// Generate visualization
 	gray.Printf("Generating %s visualization...\n", vizType)
 
-	// Validate layout if using GraphViz
-	if vizFormat != "" && vizFormat != "dot" {
-		if err := viz.ValidateLayout(vizLayout); err != nil {
-			gray.Printf("Warning: %v\n", err)
-			gray.Println("Falling back to DOT format")
-			vizFormat = "dot"
+	// Check if Mermaid format is requested
+	isMermaid := vizFormat == "mermaid" || vizFormat == "md" ||
+		strings.HasSuffix(vizOutput, ".mmd") || strings.HasSuffix(vizOutput, ".md")
+
+	if isMermaid {
+		// Generate Mermaid diagram
+		mermaidOpts := viz.MermaidOptions{
+			Type:      viz.MermaidFlowchart,
+			Direction: vizRankdir,
+			ColorBy:   vizColorBy,
+			Title:     vizTitle,
 		}
-	}
 
-	// Render to file
-	renderOpts := viz.RenderOptions{
-		VizOptions: vizOpts,
-		Output:     vizOutput,
-		Format:     viz.OutputFormat(vizFormat),
-	}
+		// Add filter if specified
+		if len(vizLayers) > 0 || len(vizTags) > 0 {
+			mermaidOpts.Filter = &viz.FilterOptions{
+				Layers: vizLayers,
+				Tags:   vizTags,
+			}
+		}
 
-	if err := viz.RenderToFile(g, renderOpts); err != nil {
-		return fmt.Errorf("failed to render visualization: %w", err)
+		var mermaid string
+		var err error
+
+		// Generate based on visualization type
+		if vizTypeEnum == viz.VizImpact && vizOpts.Impact != nil {
+			mermaid, err = viz.GenerateMermaidForImpact(g, vizOpts.Impact, mermaidOpts)
+		} else {
+			// Embed in markdown if .md extension
+			if vizFormat == "md" || strings.HasSuffix(vizOutput, ".md") {
+				mermaid, err = viz.GenerateMermaidMarkdown(g, mermaidOpts)
+			} else {
+				mermaid, err = viz.GenerateMermaid(g, mermaidOpts)
+			}
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to generate Mermaid diagram: %w", err)
+		}
+
+		// Write to file
+		if err := os.WriteFile(vizOutput, []byte(mermaid), 0644); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+	} else {
+		// Use GraphViz for other formats
+		// Validate layout if using GraphViz
+		if vizFormat != "" && vizFormat != "dot" {
+			if err := viz.ValidateLayout(vizLayout); err != nil {
+				gray.Printf("Warning: %v\n", err)
+				gray.Println("Falling back to DOT format")
+				vizFormat = "dot"
+			}
+		}
+
+		// Render to file
+		renderOpts := viz.RenderOptions{
+			VizOptions: vizOpts,
+			Output:     vizOutput,
+			Format:     viz.OutputFormat(vizFormat),
+		}
+
+		if err := viz.RenderToFile(g, renderOpts); err != nil {
+			return fmt.Errorf("failed to render visualization: %w", err)
+		}
 	}
 
 	// Success message
 	green.Printf("✓ Visualization saved to %s\n", vizOutput)
 
 	// Show tips based on output format
-	ext := vizOutput[len(vizOutput)-4:]
-	if ext == ".dot" {
+	if isMermaid {
 		cyan.Println("\n💡 Tips:")
-		fmt.Println("  • Convert to SVG: dot -Tsvg graph.dot -o graph.svg")
-		fmt.Println("  • Convert to PNG: dot -Tpng graph.dot -o graph.png")
-		fmt.Println("  • View online: https://dreampuf.github.io/GraphvizOnline/")
-		fmt.Println("  • Install GraphViz: brew install graphviz (or apt/yum/choco)")
+		fmt.Println("  • View in GitHub: Commit .md/.mmd file to repository")
+		fmt.Println("  • Preview in VS Code: Install Mermaid extension")
+		fmt.Println("  • View online: https://mermaid.live/")
+		fmt.Println("  • Embed in docs: Copy into any Markdown file")
+	} else {
+		ext := vizOutput[len(vizOutput)-4:]
+		if ext == ".dot" {
+			cyan.Println("\n💡 Tips:")
+			fmt.Println("  • Convert to SVG: dot -Tsvg graph.dot -o graph.svg")
+			fmt.Println("  • Convert to PNG: dot -Tpng graph.dot -o graph.png")
+			fmt.Println("  • View online: https://dreampuf.github.io/GraphvizOnline/")
+			fmt.Println("  • Install GraphViz: brew install graphviz (or apt/yum/choco)")
+		}
 	}
 
 	return nil
