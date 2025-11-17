@@ -1,0 +1,241 @@
+flowchart LR
+    pkg_parser_triple_go{"pkg/parser/triple.go"
+    pkg_server_graphql_resolvers_go["pkg/server/graphql/resolvers.go"
+    cmd_graphfs_cmd_init_go["cmd/graphfs/cmd_init.go"
+    cmd_graphfs_cmd_test_go["cmd/graphfs/cmd_test.go"
+    examples_minimal_app_services_user_go("services/user.go"
+    examples_minimal_app_utils_logger_go["utils/logger.go"
+    internal_store_store_go{"internal/store/store.go"
+    pkg_rules_parser_go["pkg/rules/parser.go"
+    pkg_query_query_go["pkg/query/query.go"
+    pkg_server_graphql_schema_go["pkg/server/graphql/schema.go"
+    examples_minimal_app_main_go["main.go"
+    cmd_graphfs_cmd_scan_go["cmd/graphfs/cmd_scan.go"
+    cmd_graphfs_main_go["cmd/graphfs/main.go"
+    pkg_analysis_zones_go["pkg/analysis/zones.go"
+    examples_minimal_app_utils_validator_go["utils/validator.go"
+    pkg_analysis_cleanup_go["pkg/analysis/cleanup.go"
+    pkg_analysis_deadcode_go["pkg/analysis/deadcode.go"
+    pkg_parser_parser_test_go[""
+    pkg_query_executor_go["pkg/query/executor.go"
+    pkg_rules_rule_go["pkg/rules/rule.go"
+    pkg_server_rest_modules_go["pkg/server/rest/modules.go"
+    cmd_graphfs_cmd_repl_go["cmd/graphfs/cmd_repl.go"
+    cmd_graphfs_cmd_schema_go["cmd/graphfs/cmd_schema.go"
+    cmd_graphfs_config_go["cmd/graphfs/config.go"
+    pkg_docs_markdown_go["pkg/docs/markdown.go"
+    pkg_rules_evaluator_go["pkg/rules/evaluator.go"
+    pkg_server_rest_handler_go["pkg/server/rest/handler.go"
+    cmd_graphfs_cmd_cache_go["cmd/graphfs/cmd_cache.go"
+    examples_minimal_app_utils_crypto_go["utils/crypto.go"
+    cmd_graphfs_cmd_query_go["cmd/graphfs/cmd_query.go"
+    pkg_graph_graph_go["pkg/graph/graph.go"
+    pkg_graph_validator_go["pkg/graph/validator.go"
+    pkg_schema_graphql_generator_go["pkg/schema/graphql/generator.go"
+    pkg_cache_cache_go["pkg/cache/cache.go"
+    pkg_query_parser_go["pkg/query/parser.go"
+    pkg_scanner_ignore_go["pkg/scanner/ignore.go"
+    pkg_server_server_go["pkg/server/server.go"
+    internal_store_triple_go{"internal/store/triple.go"
+    pkg_parser_example_test_go["example.go"
+    cmd_graphfs_cmd_serve_go["cmd/graphfs/cmd_serve.go"
+    examples_minimal_app_models_user_go[/"models/user.go"
+    examples_minimal_app_services_auth_go("services/auth.go"
+    pkg_repl_formatter_go["pkg/repl/formatter.go"
+    pkg_repl_repl_go["pkg/repl/repl.go"
+    pkg_server_rest_analysis_go["pkg/server/rest/analysis.go"
+    pkg_viz_dot_go["pkg/viz/dot.go"
+    pkg_rules_engine_go["pkg/rules/engine.go"
+    pkg_analysis_coverage_go["pkg/analysis/coverage.go"
+    pkg_analysis_graph_algorithms_go["pkg/analysis/graph_algorithms.go"
+    pkg_graph_module_go["pkg/graph/module.go"
+    pkg_parser_integration_test_go[""
+    pkg_analysis_security_go["pkg/analysis/security.go"
+    pkg_scanner_scanner_go["pkg/scanner/scanner.go"
+    pkg_server_sparql_handler_go["pkg/server/sparql_handler.go"
+    pkg_analysis_impact_go["pkg/analysis/impact.go"
+    pkg_scanner_language_go["pkg/scanner/language.go"
+    pkg_server_cache_middleware_go["pkg/server/cache_middleware.go"
+    pkg_server_graphql_server_go["pkg/server/graphql/server.go"
+    pkg_server_rest_tags_go["pkg/server/rest/tags.go"
+    pkg_repl_commands_go["pkg/repl/commands.go"
+    pkg_rules_reporter_go["pkg/rules/reporter.go"
+    cmd_graphfs_root_go["cmd/graphfs/root.go"
+    pkg_parser_parser_go["pkg/parser/parser.go"
+
+    pkg_server_graphql_resolvers_go --> pkg_graph_graph_go
+    pkg_server_graphql_resolvers_go --> pkg_server_graphql_schema_go
+    cmd_graphfs_cmd_init_go --> cmd_graphfs_root_go
+    cmd_graphfs_cmd_init_go --> cmd_graphfs_config_go
+    cmd_graphfs_cmd_test_go --> cmd_graphfs_root_go
+    cmd_graphfs_cmd_test_go --> cmd_graphfs_cmd_init_go
+    cmd_graphfs_cmd_test_go --> cmd_graphfs_cmd_scan_go
+    cmd_graphfs_cmd_test_go --> cmd_graphfs_cmd_query_go
+    examples_minimal_app_services_user_go --> examples_minimal_app_services_auth_go
+    examples_minimal_app_services_user_go --> examples_minimal_app_models_user_go
+    examples_minimal_app_services_user_go --> examples_minimal_app_utils_logger_go
+    internal_store_store_go --> internal_store_triple_go
+    pkg_rules_parser_go --> pkg_rules_rule_go
+    pkg_server_graphql_schema_go --> pkg_graph_graph_go
+    pkg_server_graphql_schema_go --> pkg_server_graphql_resolvers_go
+    examples_minimal_app_main_go --> examples_minimal_app_services_user_go
+    examples_minimal_app_main_go --> examples_minimal_app_services_auth_go
+    examples_minimal_app_main_go --> examples_minimal_app_utils_logger_go
+    examples_minimal_app_main_go --> examples_minimal_app_models_user_go
+    cmd_graphfs_cmd_scan_go --> cmd_graphfs_root_go
+    cmd_graphfs_cmd_scan_go --> cmd_graphfs_config_go
+    cmd_graphfs_main_go --> cmd_graphfs_root_go
+    cmd_graphfs_main_go --> pkg_parser_parser_go
+    pkg_analysis_zones_go --> pkg_graph_graph_go
+    pkg_analysis_cleanup_go --> pkg_analysis_deadcode_go
+    pkg_analysis_cleanup_go --> pkg_graph_graph_go
+    pkg_analysis_deadcode_go --> pkg_graph_graph_go
+    pkg_query_executor_go --> pkg_query_query_go
+    pkg_query_executor_go --> internal_store_store_go
+    pkg_rules_rule_go --> pkg_graph_graph_go
+    pkg_server_rest_modules_go --> pkg_graph_graph_go
+    pkg_server_rest_modules_go --> pkg_server_rest_handler_go
+    cmd_graphfs_cmd_repl_go --> pkg_repl_repl_go
+    cmd_graphfs_cmd_repl_go --> cmd_graphfs_main_go
+    cmd_graphfs_cmd_schema_go --> pkg_schema_graphql_generator_go
+    cmd_graphfs_cmd_schema_go --> pkg_graph_graph_go
+    cmd_graphfs_config_go --> cmd_graphfs_root_go
+    pkg_docs_markdown_go --> pkg_graph_graph_go
+    pkg_docs_markdown_go --> pkg_analysis_impact_go
+    pkg_rules_evaluator_go --> pkg_rules_rule_go
+    pkg_rules_evaluator_go --> pkg_graph_graph_go
+    pkg_server_rest_handler_go --> pkg_graph_graph_go
+    cmd_graphfs_cmd_cache_go --> cmd_graphfs_main_go
+    cmd_graphfs_cmd_query_go --> cmd_graphfs_root_go
+    pkg_graph_graph_go --> pkg_graph_module_go
+    pkg_graph_graph_go --> internal_store_store_go
+    pkg_graph_validator_go --> pkg_graph_graph_go
+    pkg_graph_validator_go --> pkg_graph_module_go
+    pkg_schema_graphql_generator_go --> pkg_graph_graph_go
+    pkg_schema_graphql_generator_go --> internal_store_store_go
+    pkg_query_parser_go --> pkg_query_query_go
+    pkg_server_server_go --> pkg_server_sparql_handler_go
+    pkg_server_server_go --> pkg_query_executor_go
+    cmd_graphfs_cmd_serve_go --> pkg_server_server_go
+    cmd_graphfs_cmd_serve_go --> pkg_scanner_scanner_go
+    cmd_graphfs_cmd_serve_go --> pkg_graph_graph_go
+    examples_minimal_app_models_user_go --> examples_minimal_app_utils_validator_go
+    examples_minimal_app_services_auth_go --> examples_minimal_app_utils_crypto_go
+    examples_minimal_app_services_auth_go --> examples_minimal_app_utils_logger_go
+    examples_minimal_app_services_auth_go --> examples_minimal_app_models_user_go
+    pkg_repl_formatter_go --> pkg_query_executor_go
+    pkg_repl_formatter_go --> pkg_repl_repl_go
+    pkg_repl_repl_go --> pkg_query_executor_go
+    pkg_repl_repl_go --> pkg_graph_graph_go
+    pkg_server_rest_analysis_go --> pkg_graph_graph_go
+    pkg_server_rest_analysis_go --> pkg_server_rest_handler_go
+    pkg_viz_dot_go --> pkg_graph_graph_go
+    pkg_viz_dot_go --> pkg_analysis_impact_go
+    pkg_viz_dot_go --> pkg_analysis_security_go
+    pkg_rules_engine_go --> pkg_rules_rule_go
+    pkg_rules_engine_go --> pkg_rules_parser_go
+    pkg_rules_engine_go --> pkg_rules_evaluator_go
+    pkg_rules_engine_go --> pkg_rules_reporter_go
+    pkg_rules_engine_go --> pkg_graph_graph_go
+    pkg_analysis_coverage_go --> pkg_graph_graph_go
+    pkg_analysis_coverage_go --> pkg_analysis_deadcode_go
+    pkg_analysis_graph_algorithms_go --> pkg_graph_graph_go
+    pkg_graph_module_go --> pkg_graph_graph_go
+    pkg_analysis_security_go --> pkg_graph_graph_go
+    pkg_analysis_security_go --> pkg_analysis_zones_go
+    pkg_scanner_scanner_go --> pkg_scanner_language_go
+    pkg_scanner_scanner_go --> pkg_scanner_ignore_go
+    pkg_scanner_scanner_go --> pkg_parser_parser_go
+    pkg_server_sparql_handler_go --> pkg_query_executor_go
+    pkg_analysis_impact_go --> pkg_graph_graph_go
+    pkg_analysis_impact_go --> pkg_analysis_graph_algorithms_go
+    pkg_server_cache_middleware_go --> pkg_cache_cache_go
+    pkg_server_graphql_server_go --> pkg_graph_graph_go
+    pkg_server_graphql_server_go --> pkg_server_graphql_schema_go
+    pkg_server_graphql_server_go --> pkg_server_graphql_resolvers_go
+    pkg_server_rest_tags_go --> pkg_graph_graph_go
+    pkg_server_rest_tags_go --> pkg_server_rest_handler_go
+    pkg_repl_commands_go --> pkg_repl_repl_go
+    pkg_rules_reporter_go --> pkg_rules_rule_go
+    cmd_graphfs_root_go --> cmd_graphfs_main_go
+    cmd_graphfs_root_go --> cmd_graphfs_config_go
+    pkg_parser_parser_go --> pkg_parser_triple_go
+
+    classDef style0 fill:#3F51B5,stroke:#333,stroke-width:2px
+    classDef style1 fill:#2196F3,stroke:#333,stroke-width:2px
+    classDef style2 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style3 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style4 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style5 fill:#8BC34A,stroke:#333,stroke-width:2px
+    classDef style6 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style7 fill:#FFC107,stroke:#333,stroke-width:2px
+    classDef style8 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style9 fill:#F44336,stroke:#333,stroke-width:2px
+    classDef style10 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style11 fill:#00BCD4,stroke:#333,stroke-width:2px
+    classDef style12 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style13 fill:#FF9800,stroke:#333,stroke-width:2px
+    classDef style14 fill:#E91E63,stroke:#333,stroke-width:2px
+    classDef style15 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style16 fill:#90CAF9,stroke:#333,stroke-width:2px
+    classDef style17 fill:#90CAF9,stroke:#333,stroke-width:2px
+
+    class pkg_parser_triple_go style13
+    class pkg_server_graphql_resolvers_go style0
+    class cmd_graphfs_cmd_init_go style10
+    class cmd_graphfs_cmd_test_go style10
+    class examples_minimal_app_services_user_go style1
+    class examples_minimal_app_utils_logger_go style6
+    class internal_store_store_go style2
+    class pkg_rules_parser_go style3
+    class pkg_query_query_go style14
+    class pkg_server_graphql_schema_go style0
+    class cmd_graphfs_cmd_scan_go style10
+    class cmd_graphfs_main_go style10
+    class pkg_analysis_zones_go style7
+    class examples_minimal_app_utils_validator_go style6
+    class pkg_analysis_cleanup_go style7
+    class pkg_analysis_deadcode_go style7
+    class pkg_query_executor_go style14
+    class pkg_rules_rule_go style3
+    class pkg_server_rest_modules_go style0
+    class cmd_graphfs_cmd_repl_go style10
+    class cmd_graphfs_cmd_schema_go style10
+    class cmd_graphfs_config_go style10
+    class pkg_docs_markdown_go style8
+    class pkg_rules_evaluator_go style3
+    class pkg_server_rest_handler_go style0
+    class cmd_graphfs_cmd_cache_go style10
+    class examples_minimal_app_utils_crypto_go style6
+    class cmd_graphfs_cmd_query_go style10
+    class pkg_graph_graph_go style11
+    class pkg_graph_validator_go style11
+    class pkg_schema_graphql_generator_go style15
+    class pkg_cache_cache_go style4
+    class pkg_query_parser_go style14
+    class pkg_scanner_ignore_go style16
+    class pkg_server_server_go style0
+    class internal_store_triple_go style2
+    class cmd_graphfs_cmd_serve_go style10
+    class examples_minimal_app_models_user_go style9
+    class examples_minimal_app_services_auth_go style1
+    class pkg_repl_formatter_go style12
+    class pkg_repl_repl_go style12
+    class pkg_server_rest_analysis_go style0
+    class pkg_viz_dot_go style17
+    class pkg_rules_engine_go style3
+    class pkg_analysis_coverage_go style7
+    class pkg_analysis_graph_algorithms_go style7
+    class pkg_graph_module_go style11
+    class pkg_analysis_security_go style7
+    class pkg_scanner_scanner_go style16
+    class pkg_server_sparql_handler_go style0
+    class pkg_analysis_impact_go style7
+    class pkg_scanner_language_go style16
+    class pkg_server_cache_middleware_go style0
+    class pkg_server_graphql_server_go style0
+    class pkg_server_rest_tags_go style0
+    class pkg_repl_commands_go style12
+    class pkg_rules_reporter_go style3
+    class cmd_graphfs_root_go style10
+    class pkg_parser_parser_go style5

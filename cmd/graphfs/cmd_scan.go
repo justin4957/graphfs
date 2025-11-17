@@ -54,6 +54,7 @@ var (
 	scanValidate bool
 	scanStats    bool
 	scanOutput   string
+	scanNoCache  bool
 )
 
 // scanCmd represents the scan command
@@ -81,6 +82,7 @@ func init() {
 	scanCmd.Flags().BoolVar(&scanValidate, "validate", false, "Validate graph consistency")
 	scanCmd.Flags().BoolVar(&scanStats, "stats", false, "Show detailed statistics")
 	scanCmd.Flags().StringVarP(&scanOutput, "output", "o", "", "Export graph to file")
+	scanCmd.Flags().BoolVar(&scanNoCache, "no-cache", false, "Disable persistent caching")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
@@ -138,6 +140,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		ScanOptions:    scanOpts,
 		Validate:       scanValidate,
 		ReportProgress: verbose,
+		UseCache:       !scanNoCache, // Enable cache by default unless --no-cache is set
 	}
 
 	graphObj, err := builder.Build(absPath, buildOpts)
