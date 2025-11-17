@@ -159,7 +159,17 @@ func (zc *ZoneClassifier) ClassifyModule(module *graph.Module) *ModuleZone {
 		}
 	}
 
-	// Default to unknown
+	// Apply smart defaults based on path structure
+	if zone, confidence, reason := zc.applyDefaultClassification(module); confidence > 0.0 {
+		return &ModuleZone{
+			Module:     module,
+			Zone:       zone,
+			Confidence: confidence,
+			Reason:     reason,
+		}
+	}
+
+	// Final fallback to unknown
 	return &ModuleZone{
 		Module:     module,
 		Zone:       ZoneUnknown,
@@ -182,7 +192,8 @@ func (zc *ZoneClassifier) classifyByTags(module *graph.Module) (SecurityZone, fl
 		}
 
 		// Admin zone indicators
-		adminTags := []string{"admin", "privileged", "superuser", "root"}
+		// Note: "root" is excluded to avoid matching "root.go" CLI files
+		adminTags := []string{"admin", "privileged", "superuser"}
 		for _, at := range adminTags {
 			if strings.Contains(tagLower, at) {
 				return ZoneAdmin, 0.95, "Tagged as " + tag
@@ -271,6 +282,71 @@ func (zc *ZoneClassifier) classifyByLayer(module *graph.Module) (SecurityZone, f
 
 	if zone, ok := layerMap[layerLower]; ok {
 		return zone, 0.6, "Layer '" + module.Layer + "' indicates " + string(zone) + " zone"
+	}
+
+	return ZoneUnknown, 0.0, ""
+}
+
+// applyDefaultClassification applies smart defaults based on common path patterns
+func (zc *ZoneClassifier) applyDefaultClassification(module *graph.Module) (SecurityZone, float64, string) {
+	pathLower := strings.ToLower(module.Path)
+
+	// Internal directory gets high confidence
+	if strings.HasPrefix(pathLower, "internal/") || strings.Contains(pathLower, "/internal/") {
+		return ZoneInternal, 0.6, "Default: internal package"
+	}
+
+	// cmd/ modules are CLI infrastructure, not security boundaries
+	// This should come BEFORE pkg/ to avoid cmd being treated as something else
+	if strings.HasPrefix(pathLower, "cmd/") {
+		return ZoneInternal, 0.55, "Default: CLI infrastructure"
+	}
+
+	// pkg/ modules need more nuanced classification
+	if strings.HasPrefix(pathLower, "pkg/") {
+		// Server packages that expose external APIs
+		if strings.Contains(pathLower, "/server/") {
+			if strings.Contains(pathLower, "/rest/") || strings.Contains(pathLower, "/graphql/") ||
+				strings.Contains(pathLower, "handler") {
+				return ZonePublic, 0.65, "Default: server API endpoints"
+			}
+			// Server infrastructure itself is trusted
+			return ZoneTrusted, 0.55, "Default: server infrastructure"
+		}
+
+		// Schema/GraphQL generation is often public-facing
+		if strings.Contains(pathLower, "/schema/") && strings.Contains(pathLower, "/graphql/") {
+			return ZonePublic, 0.6, "Default: GraphQL schema generation"
+		}
+
+		// Data/storage modules
+		if strings.Contains(pathLower, "/store") || strings.Contains(pathLower, "/storage") {
+			return ZoneData, 0.55, "Default: pkg data/storage module"
+		}
+
+		// Most other pkg modules are internal infrastructure
+		return ZoneInternal, 0.5, "Default: pkg modules are internal infrastructure"
+	}
+
+	// Examples - need to distinguish between models/utils (internal) and main code
+	if strings.HasPrefix(pathLower, "examples/") {
+		// Models and utils in examples are internal/data, not public
+		if strings.Contains(pathLower, "/models/") {
+			return ZoneInternal, 0.45, "Default: example model code"
+		}
+		if strings.Contains(pathLower, "/utils/") {
+			return ZoneInternal, 0.45, "Default: example utility code"
+		}
+		if strings.Contains(pathLower, "/services/") {
+			return ZoneTrusted, 0.45, "Default: example service code"
+		}
+		// Main example code can be public
+		return ZonePublic, 0.4, "Default: example code"
+	}
+
+	// test files should be classified as internal
+	if strings.HasSuffix(pathLower, "_test.go") {
+		return ZoneInternal, 0.4, "Default: test code"
 	}
 
 	return ZoneUnknown, 0.0, ""

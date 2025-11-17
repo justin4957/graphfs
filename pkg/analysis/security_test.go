@@ -217,10 +217,13 @@ func TestAllowedCrossings(t *testing.T) {
 		expected bool
 	}{
 		{ZonePublic, ZoneTrusted, true},
+		{ZonePublic, ZoneInternal, true}, // Updated: now allowed
 		{ZonePublic, ZoneAdmin, false},
 		{ZonePublic, ZoneData, false},
 		{ZoneTrusted, ZoneData, true},
 		{ZoneTrusted, ZoneInternal, true},
+		{ZoneInternal, ZoneData, true},   // Updated: now allowed
+		{ZoneInternal, ZonePublic, true}, // Updated: now allowed
 		{ZoneData, ZonePublic, false},
 	}
 

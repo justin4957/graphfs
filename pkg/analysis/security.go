@@ -195,9 +195,9 @@ func (sa *SecurityAnalyzer) detectBoundaries(zones map[SecurityZone][]*ModuleZon
 func (sa *SecurityAnalyzer) isCrossingAllowed(from, to SecurityZone) bool {
 	// Default allowed crossings (following principle of least privilege)
 	defaultAllowed := map[SecurityZone][]SecurityZone{
-		ZonePublic:   {ZoneTrusted},                         // Public can call trusted services
+		ZonePublic:   {ZoneTrusted, ZoneInternal},           // Public servers can access trusted/internal (but NOT data/admin directly)
 		ZoneTrusted:  {ZoneInternal, ZoneData},              // Trusted can access internal and data
-		ZoneInternal: {},                                    // Internal shouldn't call out
+		ZoneInternal: {ZoneTrusted, ZonePublic, ZoneData},   // Internal can access data, trusted, public
 		ZoneAdmin:    {ZoneTrusted, ZoneInternal, ZoneData}, // Admin has broad access
 		ZoneData:     {},                                    // Data layer shouldn't call out
 	}
