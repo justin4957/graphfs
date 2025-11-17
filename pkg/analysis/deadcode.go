@@ -270,7 +270,7 @@ func (d *Detector) isEntryPoint(module *graph.Module) bool {
 		return true
 	}
 
-	// Check if it has main function
+	// Check if it has main or init function (init functions have side effects)
 	for _, export := range module.Exports {
 		if export == "main" || export == "init" {
 			return true
@@ -288,6 +288,48 @@ func (d *Detector) isEntryPoint(module *graph.Module) bool {
 	for _, pattern := range entryPatterns {
 		if base == pattern {
 			return true
+		}
+	}
+
+	// Check for side-effect registration patterns (common in CLI/plugin architectures)
+	if d.hasSideEffectRegistration(module) {
+		return true
+	}
+
+	return false
+}
+
+// hasSideEffectRegistration checks if module likely registers itself via init()
+func (d *Detector) hasSideEffectRegistration(module *graph.Module) bool {
+	// Modules in cmd/ directory are typically commands that register via init()
+	if strings.Contains(module.Path, "/cmd/") {
+		return true
+	}
+
+	// Check for registration patterns in tags or path
+	registrationPatterns := []string{
+		"cmd_",       // Cobra command files (cmd_serve.go, cmd_query.go, etc.)
+		"command",    // Modules tagged as commands
+		"handler",    // HTTP handlers that register routes
+		"route",      // Route registration
+		"plugin",     // Plugin systems
+		"middleware", // Middleware registration
+	}
+
+	// Check filename
+	base := filepath.Base(module.Path)
+	for _, pattern := range registrationPatterns {
+		if strings.Contains(base, pattern) {
+			return true
+		}
+	}
+
+	// Check tags
+	for _, tag := range module.Tags {
+		for _, pattern := range registrationPatterns {
+			if strings.Contains(strings.ToLower(tag), pattern) {
+				return true
+			}
 		}
 	}
 
