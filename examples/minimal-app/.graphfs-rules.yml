@@ -1,0 +1,48 @@
+version: "1.0"
+name: "GraphFS Architecture Rules"
+rules:
+  - id: exports-documented
+    name: "All exports must be documented"
+    description: "Ensures all modules with exports have documentation"
+    severity: warning
+    pattern: |
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX code: <https://schema.codedoc.org/>
+      SELECT ?module WHERE {
+        ?module rdf:type code:Module .
+        ?module code:exports ?export .
+        FILTER NOT EXISTS { ?module code:description ?desc }
+      }
+    expect: 0
+    enabled: true
+    suggestion: "Add a description field to the module's LinkedDoc metadata"
+
+  - id: modules-have-layer
+    name: "All modules must have a layer"
+    description: "Ensures all modules are assigned to an architectural layer"
+    severity: warning
+    pattern: |
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX code: <https://schema.codedoc.org/>
+      SELECT ?module WHERE {
+        ?module rdf:type code:Module .
+        FILTER NOT EXISTS { ?module code:layer ?layer }
+      }
+    expect: 0
+    enabled: true
+    suggestion: "Add a layer field to the module's LinkedDoc metadata"
+
+  - id: modules-have-tags
+    name: "All modules should have tags"
+    description: "Ensures modules are properly tagged for categorization"
+    severity: info
+    pattern: |
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX code: <https://schema.codedoc.org/>
+      SELECT ?module WHERE {
+        ?module rdf:type code:Module .
+        FILTER NOT EXISTS { ?module code:tags ?tag }
+      }
+    expect: 0
+    enabled: true
+    suggestion: "Add tags to the module's LinkedDoc metadata for better categorization"
