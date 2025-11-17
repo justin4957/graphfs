@@ -227,11 +227,17 @@ func (m *Manager) Invalidate(filePath string) error {
 func (m *Manager) Clear() error {
 	return m.db.Update(func(tx *bolt.Tx) error {
 		// Delete and recreate buckets
-		if err := tx.DeleteBucket([]byte(modulesBucket)); err != nil && err != bolt.ErrBucketNotFound {
-			return err
+		if err := tx.DeleteBucket([]byte(modulesBucket)); err != nil {
+			// Ignore if bucket doesn't exist
+			if err.Error() != "bucket not found" {
+				return err
+			}
 		}
-		if err := tx.DeleteBucket([]byte(fileHashesBucket)); err != nil && err != bolt.ErrBucketNotFound {
-			return err
+		if err := tx.DeleteBucket([]byte(fileHashesBucket)); err != nil {
+			// Ignore if bucket doesn't exist
+			if err.Error() != "bucket not found" {
+				return err
+			}
 		}
 
 		if _, err := tx.CreateBucket([]byte(modulesBucket)); err != nil {
@@ -320,21 +326,6 @@ func (m *Manager) setMetadata(key, value string) error {
 		bucket := tx.Bucket([]byte(metadataBucket))
 		return bucket.Put([]byte(key), []byte(value))
 	})
-}
-
-// getMetadata retrieves metadata from the cache
-func (m *Manager) getMetadata(key string) (string, error) {
-	var value string
-	err := m.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(metadataBucket))
-		data := bucket.Get([]byte(key))
-		if data == nil {
-			return fmt.Errorf("not found")
-		}
-		value = string(data)
-		return nil
-	})
-	return value, err
 }
 
 // IsEnabled checks if caching is enabled (database is open)

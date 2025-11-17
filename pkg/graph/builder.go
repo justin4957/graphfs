@@ -267,10 +267,8 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 
 		// Cache the module if caching is enabled
 		if useCache && b.cacheManager != nil {
-			if err := b.cacheManager.Set(file.Path, module); err != nil {
-				// Log warning but don't fail - caching is not critical
-				// The warning is already logged in Build() if cache init fails
-			}
+			// Ignore cache write errors - caching is not critical
+			_ = b.cacheManager.Set(file.Path, module)
 		}
 	}
 
