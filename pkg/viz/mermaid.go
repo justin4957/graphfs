@@ -233,7 +233,12 @@ func (mg *MermaidGenerator) generateWithSubgraphs(modules []*graph.Module) {
 
 	// Generate subgraphs
 	for layer, layerModules := range layerMap {
-		layerLabel := strings.Title(layer) + " Layer"
+		// Capitalize first letter manually (strings.Title is deprecated)
+		layerLabel := layer
+		if len(layerLabel) > 0 {
+			layerLabel = strings.ToUpper(layerLabel[:1]) + layerLabel[1:]
+		}
+		layerLabel = layerLabel + " Layer"
 		mg.builder.WriteString(fmt.Sprintf("    subgraph %s[\"%s\"]\n",
 			mg.sanitizeNodeID(layer), layerLabel))
 
