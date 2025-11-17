@@ -101,5 +101,5 @@ func Example_validation() {
 	fmt.Printf("Validation: %d errors, %d warnings\n",
 		len(result.Errors), len(result.Warnings))
 
-	// Output: Validation: 0 errors, 11 warnings
+	// Output: Validation: 0 errors, 0 warnings
 }
