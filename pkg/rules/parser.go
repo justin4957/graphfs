@@ -119,7 +119,7 @@ func (p *Parser) validate(ruleSet *RuleSet) error {
 func (p *Parser) setDefaults(ruleSet *RuleSet) {
 	for _, rule := range ruleSet.Rules {
 		// Enable by default if not specified
-		if rule.Enabled == false && rule.Severity != "" {
+		if !rule.Enabled && rule.Severity != "" {
 			rule.Enabled = true
 		}
 
