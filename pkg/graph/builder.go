@@ -211,7 +211,7 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 		}
 
 		if module != nil && triple.Subject == moduleURI {
-			b.extractModuleProperty(module, triple.Predicate, objectStr)
+			b.extractModuleProperty(module, triple.Predicate, objectStr, relPath)
 		}
 	}
 
@@ -224,7 +224,7 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 }
 
 // extractModuleProperty extracts module properties from RDF predicates
-func (b *Builder) extractModuleProperty(module *Module, predicate, value string) {
+func (b *Builder) extractModuleProperty(module *Module, predicate, value, modulePath string) {
 	switch {
 	case strings.HasSuffix(predicate, "name"):
 		module.Name = value
@@ -235,7 +235,9 @@ func (b *Builder) extractModuleProperty(module *Module, predicate, value string)
 	case strings.HasSuffix(predicate, "layer"):
 		module.Layer = value
 	case strings.HasSuffix(predicate, "linksTo"):
-		module.AddDependency(value)
+		// Resolve relative path to absolute path relative to project root
+		resolvedPath := b.resolveDependencyPath(value, modulePath)
+		module.AddDependency(resolvedPath)
 	case strings.HasSuffix(predicate, "exports"):
 		module.AddExport(value)
 	case strings.HasSuffix(predicate, "calls"):
@@ -246,6 +248,29 @@ func (b *Builder) extractModuleProperty(module *Module, predicate, value string)
 		// Store other properties
 		module.AddProperty(predicate, value)
 	}
+}
+
+// resolveDependencyPath resolves a dependency path relative to the module's location
+func (b *Builder) resolveDependencyPath(depPath, modulePath string) string {
+	// Remove angle brackets if present (RDF URI notation)
+	depPath = strings.TrimPrefix(depPath, "<")
+	depPath = strings.TrimSuffix(depPath, ">")
+
+	// If it's already an absolute path or doesn't contain relative markers, return as-is
+	if !strings.Contains(depPath, "..") && !strings.HasPrefix(depPath, "./") {
+		return depPath
+	}
+
+	// Get the directory of the module
+	moduleDir := filepath.Dir(modulePath)
+
+	// Resolve the relative path
+	resolvedPath := filepath.Join(moduleDir, depPath)
+
+	// Clean the path to normalize it (removes . and .. components)
+	cleanPath := filepath.Clean(resolvedPath)
+
+	return cleanPath
 }
 
 // buildDependencyGraph builds reverse dependency relationships
