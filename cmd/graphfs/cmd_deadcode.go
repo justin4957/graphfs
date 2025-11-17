@@ -12,12 +12,11 @@ import (
 )
 
 var (
-	deadCodeConfidence   float64
-	deadCodeExclude      []string
-	deadCodeScript       string
-	deadCodeIncludeTests bool
-	deadCodeAggressive   bool
-	deadCodeTarget       string
+	deadCodeConfidence float64
+	deadCodeExclude    []string
+	deadCodeScript     string
+	deadCodeAggressive bool
+	deadCodeTarget     string
 )
 
 var deadCodeCmd = &cobra.Command{
@@ -42,10 +41,7 @@ Examples:
   graphfs dead-code --script cleanup.sh
 
   # Aggressive mode (more likely to flag code as dead)
-  graphfs dead-code --aggressive
-
-  # Include test files in analysis
-  graphfs dead-code --include-tests`,
+  graphfs dead-code --aggressive`,
 	RunE: runDeadCode,
 }
 
@@ -58,8 +54,6 @@ func init() {
 		"Glob patterns to exclude")
 	deadCodeCmd.Flags().StringVarP(&deadCodeScript, "script", "s", "",
 		"Generate cleanup script to file")
-	deadCodeCmd.Flags().BoolVar(&deadCodeIncludeTests, "include-tests", false,
-		"Include test files in analysis")
 	deadCodeCmd.Flags().BoolVarP(&deadCodeAggressive, "aggressive", "a", false,
 		"Aggressive mode (more likely to flag code as dead)")
 	deadCodeCmd.Flags().StringVarP(&deadCodeTarget, "target", "t", ".",
@@ -96,7 +90,6 @@ func runDeadCode(cmd *cobra.Command, args []string) error {
 	opts := analysis.DeadCodeOptions{
 		MinConfidence:   deadCodeConfidence,
 		ExcludePatterns: deadCodeExclude,
-		IncludeTests:    deadCodeIncludeTests,
 		AggressiveMode:  deadCodeAggressive,
 	}
 

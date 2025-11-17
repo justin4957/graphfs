@@ -110,7 +110,6 @@ func TestDetectDeadCode(t *testing.T) {
 	opts := DeadCodeOptions{
 		MinConfidence:   0.5,
 		ExcludePatterns: []string{},
-		IncludeTests:    false,
 		AggressiveMode:  false,
 	}
 

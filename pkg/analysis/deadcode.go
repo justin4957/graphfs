@@ -80,13 +80,11 @@ type DeadSymbol struct {
 
 // DeadCodeOptions configures dead code detection
 type DeadCodeOptions struct {
-	MinConfidence    float64  // Minimum confidence threshold (0.0-1.0)
-	ExcludePatterns  []string // Glob patterns to exclude
-	IncludeTests     bool     // Include test files in analysis
-	AggressiveMode   bool     // More aggressive detection
-	ConsiderFileAge  bool     // Factor in file modification time
-	MaxFileAgeDays   int      // Files older than this are more likely dead (default: 180)
-	DetectUnexported bool     // Detect unexported symbols
+	MinConfidence   float64  // Minimum confidence threshold (0.0-1.0)
+	ExcludePatterns []string // Glob patterns to exclude
+	AggressiveMode  bool     // More aggressive detection
+	ConsiderFileAge bool     // Factor in file modification time
+	MaxFileAgeDays  int      // Files older than this are more likely dead (default: 180)
 }
 
 // Detector performs dead code detection
@@ -179,8 +177,9 @@ func (d *Detector) findUnreferencedModules() []*DeadModule {
 			continue
 		}
 
-		// Skip test files unless explicitly included
-		if !d.options.IncludeTests && d.isTestFile(module.Path) {
+		// ALWAYS skip test files - they're run by go test, not imported
+		// Test files should never be flagged as dead code
+		if d.isTestFile(module.Path) {
 			continue
 		}
 
