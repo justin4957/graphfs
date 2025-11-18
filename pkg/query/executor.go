@@ -216,6 +216,11 @@ func (e *Executor) resolveValue(value string, binding map[string]string, prefixe
 		return ""
 	}
 
+	// Strip literal quotes if present - the store uses plain values without quotes
+	if IsLiteral(value) {
+		return StripLiteral(value)
+	}
+
 	// Strip URI brackets if present - the store uses canonical form without brackets
 	// Exception: subjects that start with < keep their brackets as they're part of the identifier
 	if IsURI(value) {
