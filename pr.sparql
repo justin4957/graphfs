@@ -1,0 +1,7 @@
+'PREFIX code: <https://schema.codedoc.org/>
+SELECT ?module ?dependency
+WHERE {
+  ?module code:layer "api" .
+  ?module code:linksTo ?dependency .
+  ?dependency code:layer "storage" .
+}''
