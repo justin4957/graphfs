@@ -47,6 +47,14 @@ import (
 	"sync"
 )
 
+// IndexStats contains statistics for query optimization
+type IndexStats struct {
+	PredicateCounts map[string]int // Number of triples per predicate
+	SubjectCounts   map[string]int // Number of triples per subject
+	ObjectCounts    map[string]int // Number of triples per object
+	TotalTriples    int            // Total number of triples
+}
+
 // TripleStore is an in-memory RDF triple store with multiple indexes
 type TripleStore struct {
 	mu sync.RWMutex
@@ -62,6 +70,9 @@ type TripleStore struct {
 
 	// Count of triples
 	count int
+
+	// Statistics for query optimization
+	stats IndexStats
 }
 
 // NewTripleStore creates a new in-memory triple store
@@ -71,6 +82,12 @@ func NewTripleStore() *TripleStore {
 		pos:   make(map[string]map[string]map[string]bool),
 		osp:   make(map[string]map[string]map[string]bool),
 		count: 0,
+		stats: IndexStats{
+			PredicateCounts: make(map[string]int),
+			SubjectCounts:   make(map[string]int),
+			ObjectCounts:    make(map[string]int),
+			TotalTriples:    0,
+		},
 	}
 }
 
@@ -110,6 +127,12 @@ func (ts *TripleStore) Add(subject, predicate, object string) error {
 		ts.osp[object][subject] = make(map[string]bool)
 	}
 	ts.osp[object][subject][predicate] = true
+
+	// Update statistics
+	ts.stats.PredicateCounts[predicate]++
+	ts.stats.SubjectCounts[subject]++
+	ts.stats.ObjectCounts[object]++
+	ts.stats.TotalTriples++
 
 	ts.count++
 	return nil
@@ -263,6 +286,14 @@ func (ts *TripleStore) Clear() error {
 	ts.pos = make(map[string]map[string]map[string]bool)
 	ts.osp = make(map[string]map[string]map[string]bool)
 	ts.count = 0
+
+	// Reset statistics
+	ts.stats = IndexStats{
+		PredicateCounts: make(map[string]int),
+		SubjectCounts:   make(map[string]int),
+		ObjectCounts:    make(map[string]int),
+		TotalTriples:    0,
+	}
 
 	return nil
 }
@@ -427,6 +458,21 @@ func (ts *TripleStore) deleteTripleUnsafe(subject, predicate, object string) {
 		}
 	}
 
+	// Update statistics
+	ts.stats.PredicateCounts[predicate]--
+	if ts.stats.PredicateCounts[predicate] <= 0 {
+		delete(ts.stats.PredicateCounts, predicate)
+	}
+	ts.stats.SubjectCounts[subject]--
+	if ts.stats.SubjectCounts[subject] <= 0 {
+		delete(ts.stats.SubjectCounts, subject)
+	}
+	ts.stats.ObjectCounts[object]--
+	if ts.stats.ObjectCounts[object] <= 0 {
+		delete(ts.stats.ObjectCounts, object)
+	}
+	ts.stats.TotalTriples--
+
 	ts.count--
 }
 
@@ -437,4 +483,30 @@ func (ts *TripleStore) String() string {
 
 	return fmt.Sprintf("TripleStore{triples: %d, subjects: %d, predicates: %d, objects: %d}",
 		ts.count, len(ts.spo), len(ts.pos), len(ts.osp))
+}
+
+// Stats returns a copy of the index statistics for query optimization
+func (ts *TripleStore) Stats() IndexStats {
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+
+	// Return a copy to prevent external modification
+	statsCopy := IndexStats{
+		PredicateCounts: make(map[string]int, len(ts.stats.PredicateCounts)),
+		SubjectCounts:   make(map[string]int, len(ts.stats.SubjectCounts)),
+		ObjectCounts:    make(map[string]int, len(ts.stats.ObjectCounts)),
+		TotalTriples:    ts.stats.TotalTriples,
+	}
+
+	for k, v := range ts.stats.PredicateCounts {
+		statsCopy.PredicateCounts[k] = v
+	}
+	for k, v := range ts.stats.SubjectCounts {
+		statsCopy.SubjectCounts[k] = v
+	}
+	for k, v := range ts.stats.ObjectCounts {
+		statsCopy.ObjectCounts[k] = v
+	}
+
+	return statsCopy
 }
