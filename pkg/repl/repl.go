@@ -55,12 +55,14 @@ type Config struct {
 
 // REPL is the interactive Read-Eval-Print Loop
 type REPL struct {
-	config   *Config
-	executor *query.Executor
-	graph    *graph.Graph
-	rl       *readline.Instance
-	format   string
-	history  []string
+	config      *Config
+	executor    *query.Executor
+	graph       *graph.Graph
+	rl          *readline.Instance
+	format      string
+	history     []string
+	completer   *Completer
+	highlighter *Highlighter
 }
 
 // New creates a new REPL instance
@@ -86,13 +88,19 @@ func New(executor *query.Executor, g *graph.Graph, config *Config) (*REPL, error
 		return nil, fmt.Errorf("failed to initialize readline: %w", err)
 	}
 
+	// Create completer and highlighter
+	completer := NewCompleter(g)
+	highlighter := NewHighlighter(config.NoColor)
+
 	repl := &REPL{
-		config:   config,
-		executor: executor,
-		graph:    g,
-		rl:       rl,
-		format:   "table",
-		history:  make([]string, 0),
+		config:      config,
+		executor:    executor,
+		graph:       g,
+		rl:          rl,
+		format:      "table",
+		history:     make([]string, 0),
+		completer:   completer,
+		highlighter: highlighter,
 	}
 
 	// Set up autocomplete
@@ -229,35 +237,7 @@ func (r *REPL) executeQuery(queryStr string) {
 
 // setupAutocomplete configures tab completion
 func (r *REPL) setupAutocomplete() {
-	completer := readline.NewPrefixCompleter(
-		readline.PcItem(".help"),
-		readline.PcItem(".format",
-			readline.PcItem("table"),
-			readline.PcItem("json"),
-			readline.PcItem("csv"),
-		),
-		readline.PcItem(".load"),
-		readline.PcItem(".save"),
-		readline.PcItem(".history"),
-		readline.PcItem(".clear"),
-		readline.PcItem(".schema"),
-		readline.PcItem(".examples"),
-		readline.PcItem(".stats"),
-		readline.PcItem(".exit"),
-		readline.PcItem("SELECT"),
-		readline.PcItem("WHERE"),
-		readline.PcItem("CONSTRUCT"),
-		readline.PcItem("ASK"),
-		readline.PcItem("DESCRIBE"),
-		readline.PcItem("PREFIX"),
-		readline.PcItem("FILTER"),
-		readline.PcItem("LIMIT"),
-		readline.PcItem("OFFSET"),
-		readline.PcItem("ORDER BY"),
-		readline.PcItem("DISTINCT"),
-	)
-
-	r.rl.Config.AutoComplete = completer
+	r.rl.Config.AutoComplete = r.completer.GetCompleter()
 }
 
 // printWelcome displays the welcome message
@@ -267,11 +247,24 @@ func (r *REPL) printWelcome() {
 		fmt.Println("Type .help for commands or enter SPARQL queries")
 		fmt.Printf("Loaded graph with %d modules\n", len(r.graph.Modules))
 		fmt.Println()
+		fmt.Println("Features:")
+		fmt.Println("  - Tab completion for commands, keywords, modules, and predicates")
+		fmt.Println("  - Multi-line query editing")
+		fmt.Println("  - Query history with Up/Down arrows and Ctrl+R search")
+		fmt.Println("  - Syntax highlighting")
+		fmt.Println()
 	} else {
 		cyan := color.New(color.FgCyan, color.Bold)
 		cyan.Println("GraphFS Interactive REPL")
 		fmt.Println("Type .help for commands or enter SPARQL queries")
 		fmt.Printf("Loaded graph with %d modules\n", len(r.graph.Modules))
+		fmt.Println()
+		green := color.New(color.FgGreen)
+		green.Println("Features:")
+		fmt.Println("  - Tab completion for commands, keywords, modules, and predicates")
+		fmt.Println("  - Multi-line query editing")
+		fmt.Println("  - Query history with Up/Down arrows and Ctrl+R search")
+		fmt.Println("  - Syntax highlighting")
 		fmt.Println()
 	}
 }
