@@ -57,6 +57,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -77,6 +78,7 @@ type ScanOptions struct {
 	IgnoreFiles     []string
 	UseDefaults     bool // Use default ignore patterns
 	Concurrent      bool // Enable concurrent scanning
+	Workers         int  // Number of parallel workers (0 = NumCPU)
 }
 
 // DefaultScanOptions returns default scan options
@@ -87,6 +89,7 @@ func DefaultScanOptions() ScanOptions {
 		IgnoreFiles:    []string{".gitignore", ".graphfsignore"},
 		UseDefaults:    true,
 		Concurrent:     true,
+		Workers:        0, // 0 = use NumCPU
 	}
 }
 
@@ -217,8 +220,13 @@ func (s *Scanner) scanConcurrent(rootPath string, ignoreMatcher *IgnoreMatcher, 
 		fileChan = make(chan string, 100)
 	)
 
+	// Determine number of workers
+	numWorkers := opts.Workers
+	if numWorkers <= 0 {
+		numWorkers = runtime.NumCPU()
+	}
+
 	// Start worker pool
-	numWorkers := 4
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {

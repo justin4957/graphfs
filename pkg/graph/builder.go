@@ -41,7 +41,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/justin4957/graphfs/internal/store"
@@ -122,57 +125,92 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 		fmt.Println("Parsing LinkedDoc metadata...")
 	}
 
-	cacheHits := 0
-	cacheMisses := 0
+	// Determine number of workers (use scan workers setting)
+	numWorkers := opts.ScanOptions.Workers
+	if numWorkers <= 0 {
+		numWorkers = runtime.NumCPU()
+	}
 
+	// Use atomic counters for thread-safe cache statistics
+	var cacheHits atomic.Int64
+	var cacheMisses atomic.Int64
+
+	// Filter files with LinkedDoc
+	var linkedDocFiles []scanner.FileInfo
 	for _, file := range scanResult.Files {
-		if !file.HasLinkedDoc {
-			continue
-		}
-
-		// Try to get module from cache
-		if opts.UseCache && b.cacheManager != nil {
-			if cachedData, found := b.cacheManager.Get(file.Path); found {
-				// Unmarshal the cached module
-				var cachedModule Module
-				if err := json.Unmarshal(cachedData.ModuleJSON, &cachedModule); err == nil {
-					// Add module to graph
-					graph.AddModule(&cachedModule)
-
-					// Restore triples to graph store
-					for _, triple := range cachedData.Triples {
-						if err := graph.Store.Add(triple.Subject, triple.Predicate, triple.Object); err != nil {
-							// Log error but continue - this shouldn't break the build
-							if opts.ReportProgress {
-								fmt.Printf("Warning: failed to restore triple for %s: %v\n", file.Path, err)
-							}
-						}
-					}
-
-					cacheHits++
-					continue
-				}
-				// If unmarshal fails, fall through to re-parse
-			}
-			cacheMisses++
-		}
-
-		if err := b.processFile(*file, graph, absRoot, opts.UseCache); err != nil {
-			if opts.ReportProgress {
-				fmt.Printf("Warning: failed to process %s: %v\n", file.Path, err)
-			}
-			continue
+		if file.HasLinkedDoc {
+			linkedDocFiles = append(linkedDocFiles, *file)
 		}
 	}
 
+	// Process files in parallel
+	var wg sync.WaitGroup
+	fileChan := make(chan scanner.FileInfo, len(linkedDocFiles))
+
+	// Start worker pool
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Each worker gets its own parser to avoid race conditions
+			workerParser := parser.NewParser()
+
+			for file := range fileChan {
+				// Try to get module from cache
+				if opts.UseCache && b.cacheManager != nil {
+					if cachedData, found := b.cacheManager.Get(file.Path); found {
+						// Unmarshal the cached module
+						var cachedModule Module
+						if err := json.Unmarshal(cachedData.ModuleJSON, &cachedModule); err == nil {
+							// Add module to graph (thread-safe)
+							graph.AddModule(&cachedModule)
+
+							// Restore triples to graph store (thread-safe)
+							for _, triple := range cachedData.Triples {
+								if err := graph.Store.Add(triple.Subject, triple.Predicate, triple.Object); err != nil {
+									// Log error but continue - this shouldn't break the build
+									if opts.ReportProgress {
+										fmt.Printf("Warning: failed to restore triple for %s: %v\n", file.Path, err)
+									}
+								}
+							}
+
+							cacheHits.Add(1)
+							continue
+						}
+						// If unmarshal fails, fall through to re-parse
+					}
+					cacheMisses.Add(1)
+				}
+
+				if err := b.processFile(file, graph, absRoot, opts.UseCache, workerParser); err != nil {
+					if opts.ReportProgress {
+						fmt.Printf("Warning: failed to process %s: %v\n", file.Path, err)
+					}
+				}
+			}
+		}()
+	}
+
+	// Send files to workers
+	for _, file := range linkedDocFiles {
+		fileChan <- file
+	}
+	close(fileChan)
+
+	// Wait for all workers to complete
+	wg.Wait()
+
 	// Report cache statistics
 	if opts.ReportProgress && opts.UseCache && b.cacheManager != nil {
-		total := cacheHits + cacheMisses
+		hits := cacheHits.Load()
+		misses := cacheMisses.Load()
+		total := hits + misses
 		hitRate := 0.0
 		if total > 0 {
-			hitRate = float64(cacheHits) / float64(total) * 100
+			hitRate = float64(hits) / float64(total) * 100
 		}
-		fmt.Printf("Cache: %d hits, %d misses (%.1f%% hit rate)\n", cacheHits, cacheMisses, hitRate)
+		fmt.Printf("Cache: %d hits, %d misses (%.1f%% hit rate)\n", hits, misses, hitRate)
 	}
 
 	// Update statistics
@@ -224,9 +262,9 @@ func (b *Builder) Rebuild(rootPath string, opts BuildOptions) (*Graph, error) {
 }
 
 // processFile parses a file and adds it to the graph
-func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath string, useCache bool) error {
+func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath string, useCache bool, p *parser.Parser) error {
 	// Parse LinkedDoc metadata
-	triples, err := b.parser.Parse(file.Path)
+	triples, err := p.Parse(file.Path)
 	if err != nil {
 		return fmt.Errorf("parse failed: %w", err)
 	}

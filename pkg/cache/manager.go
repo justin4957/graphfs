@@ -40,6 +40,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -84,8 +85,8 @@ type Manager struct {
 	db       *bolt.DB
 	root     string
 	cacheDir string
-	hits     int64
-	misses   int64
+	hits     atomic.Int64 // Thread-safe cache hits counter
+	misses   atomic.Int64 // Thread-safe cache misses counter
 }
 
 // NewManager creates a new cache manager
@@ -152,7 +153,7 @@ func (m *Manager) Get(filePath string) (*CachedData, bool) {
 	// Calculate current file hash
 	currentHash, modTime, err := m.calculateFileHash(filePath)
 	if err != nil {
-		m.misses++
+		m.misses.Add(1)
 		return nil, false
 	}
 
@@ -169,25 +170,25 @@ func (m *Manager) Get(filePath string) (*CachedData, bool) {
 	})
 
 	if err != nil {
-		m.misses++
+		m.misses.Add(1)
 		return nil, false
 	}
 
 	// Validate cache: check if file hash matches and mtime hasn't changed
 	if cached.FileHash != currentHash || !cached.FileModTime.Equal(modTime) {
-		m.misses++
+		m.misses.Add(1)
 		_ = m.saveCounters() // Persist counter update
 		return nil, false
 	}
 
-	m.hits++
+	m.hits.Add(1)
 	_ = m.saveCounters() // Persist counter update
 
 	// Return the module as JSON bytes along with triples
 	moduleBytes, err := json.Marshal(cached.Module)
 	if err != nil {
-		m.misses++
-		m.hits--             // Undo the hit count
+		m.misses.Add(1)
+		m.hits.Add(-1)       // Undo the hit count
 		_ = m.saveCounters() // Persist counter update
 		return nil, false
 	}
@@ -277,15 +278,18 @@ func (m *Manager) Clear() error {
 
 // Stats returns cache statistics
 func (m *Manager) Stats() (CacheStats, error) {
+	hits := m.hits.Load()
+	misses := m.misses.Load()
+
 	stats := CacheStats{
-		CacheHits:   m.hits,
-		CacheMisses: m.misses,
+		CacheHits:   hits,
+		CacheMisses: misses,
 	}
 
 	// Calculate hit rate
-	total := m.hits + m.misses
+	total := hits + misses
 	if total > 0 {
-		stats.HitRate = float64(m.hits) / float64(total)
+		stats.HitRate = float64(hits) / float64(total)
 	}
 
 	// Count modules and calculate size
@@ -368,7 +372,7 @@ func (m *Manager) loadCounters() {
 		if data := bucket.Get([]byte("hits")); data != nil {
 			var hits int64
 			if err := json.Unmarshal(data, &hits); err == nil {
-				m.hits = hits
+				m.hits.Store(hits)
 			}
 		}
 
@@ -376,7 +380,7 @@ func (m *Manager) loadCounters() {
 		if data := bucket.Get([]byte("misses")); data != nil {
 			var misses int64
 			if err := json.Unmarshal(data, &misses); err == nil {
-				m.misses = misses
+				m.misses.Store(misses)
 			}
 		}
 
@@ -390,7 +394,7 @@ func (m *Manager) saveCounters() error {
 		bucket := tx.Bucket([]byte(metadataBucket))
 
 		// Save hits
-		hitsData, err := json.Marshal(m.hits)
+		hitsData, err := json.Marshal(m.hits.Load())
 		if err != nil {
 			return err
 		}
@@ -399,7 +403,7 @@ func (m *Manager) saveCounters() error {
 		}
 
 		// Save misses
-		missesData, err := json.Marshal(m.misses)
+		missesData, err := json.Marshal(m.misses.Load())
 		if err != nil {
 			return err
 		}
