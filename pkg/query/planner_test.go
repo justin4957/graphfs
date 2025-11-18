@@ -33,9 +33,9 @@ func TestQueryPlannerOptimization(t *testing.T) {
 	query := &SelectQuery{
 		Variables: []string{"?module"},
 		Where: []TriplePattern{
-			{Subject: "?module", Predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", Object: "https://schema.codedoc.org/Module"},     // High cardinality
-			{Subject: "?module", Predicate: "https://schema.codedoc.org/language", Object: "go"},                                                 // Medium cardinality
-			{Subject: "?module", Predicate: "https://schema.codedoc.org/exports", Object: "?export"},                                             // Low cardinality
+			{Subject: "?module", Predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", Object: "https://schema.codedoc.org/Module"}, // High cardinality
+			{Subject: "?module", Predicate: "https://schema.codedoc.org/language", Object: "go"},                                            // Medium cardinality
+			{Subject: "?module", Predicate: "https://schema.codedoc.org/exports", Object: "?export"},                                        // Low cardinality
 		},
 	}
 
