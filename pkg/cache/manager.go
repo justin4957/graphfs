@@ -63,9 +63,17 @@ type CacheStats struct {
 	LastUpdated time.Time
 }
 
+// Triple represents an RDF triple to be cached
+type Triple struct {
+	Subject   string
+	Predicate string
+	Object    string
+}
+
 // CachedModule wraps a module with cache metadata
 type CachedModule struct {
 	Module      interface{} // Stored as JSON, can be any module type
+	Triples     []Triple    // RDF triples for this module
 	FileHash    string
 	CachedAt    time.Time
 	FileModTime time.Time
@@ -126,12 +134,21 @@ func NewManager(root string) (*Manager, error) {
 		return nil, err
 	}
 
+	// Load persisted hit/miss counters
+	manager.loadCounters()
+
 	return manager, nil
 }
 
+// CachedData contains the cached module and its triples
+type CachedData struct {
+	ModuleJSON []byte
+	Triples    []Triple
+}
+
 // Get retrieves a cached module if it's still valid
-// Returns the module as JSON bytes that need to be unmarshaled by the caller
-func (m *Manager) Get(filePath string) ([]byte, bool) {
+// Returns the module as JSON bytes and triples that need to be restored by the caller
+func (m *Manager) Get(filePath string) (*CachedData, bool) {
 	// Calculate current file hash
 	currentHash, modTime, err := m.calculateFileHash(filePath)
 	if err != nil {
@@ -159,25 +176,31 @@ func (m *Manager) Get(filePath string) ([]byte, bool) {
 	// Validate cache: check if file hash matches and mtime hasn't changed
 	if cached.FileHash != currentHash || !cached.FileModTime.Equal(modTime) {
 		m.misses++
+		_ = m.saveCounters() // Persist counter update
 		return nil, false
 	}
 
 	m.hits++
+	_ = m.saveCounters() // Persist counter update
 
-	// Return the module as JSON bytes
+	// Return the module as JSON bytes along with triples
 	moduleBytes, err := json.Marshal(cached.Module)
 	if err != nil {
 		m.misses++
 		m.hits-- // Undo the hit count
+		_ = m.saveCounters() // Persist counter update
 		return nil, false
 	}
 
-	return moduleBytes, true
+	return &CachedData{
+		ModuleJSON: moduleBytes,
+		Triples:    cached.Triples,
+	}, true
 }
 
-// Set stores a module in the cache
+// Set stores a module and its triples in the cache
 // The module parameter must be JSON-serializable
-func (m *Manager) Set(filePath string, module interface{}) error {
+func (m *Manager) Set(filePath string, module interface{}, triples []Triple) error {
 	// Calculate file hash
 	fileHash, modTime, err := m.calculateFileHash(filePath)
 	if err != nil {
@@ -186,6 +209,7 @@ func (m *Manager) Set(filePath string, module interface{}) error {
 
 	cached := CachedModule{
 		Module:      module,
+		Triples:     triples,
 		FileHash:    fileHash,
 		CachedAt:    time.Now(),
 		FileModTime: modTime,
@@ -290,6 +314,8 @@ func (m *Manager) Stats() (CacheStats, error) {
 // Close closes the cache database
 func (m *Manager) Close() error {
 	if m.db != nil {
+		// Save counters before closing
+		_ = m.saveCounters()
 		return m.db.Close()
 	}
 	return nil
@@ -331,4 +357,52 @@ func (m *Manager) setMetadata(key, value string) error {
 // IsEnabled checks if caching is enabled (database is open)
 func (m *Manager) IsEnabled() bool {
 	return m.db != nil
+}
+
+// loadCounters loads hit/miss counters from persistent storage
+func (m *Manager) loadCounters() {
+	_ = m.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(metadataBucket))
+
+		// Load hits
+		if data := bucket.Get([]byte("hits")); data != nil {
+			var hits int64
+			if err := json.Unmarshal(data, &hits); err == nil {
+				m.hits = hits
+			}
+		}
+
+		// Load misses
+		if data := bucket.Get([]byte("misses")); data != nil {
+			var misses int64
+			if err := json.Unmarshal(data, &misses); err == nil {
+				m.misses = misses
+			}
+		}
+
+		return nil
+	})
+}
+
+// saveCounters saves hit/miss counters to persistent storage
+func (m *Manager) saveCounters() error {
+	return m.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(metadataBucket))
+
+		// Save hits
+		hitsData, err := json.Marshal(m.hits)
+		if err != nil {
+			return err
+		}
+		if err := bucket.Put([]byte("hits"), hitsData); err != nil {
+			return err
+		}
+
+		// Save misses
+		missesData, err := json.Marshal(m.misses)
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte("misses"), missesData)
+	})
 }

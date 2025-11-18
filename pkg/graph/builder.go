@@ -132,11 +132,23 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 
 		// Try to get module from cache
 		if opts.UseCache && b.cacheManager != nil {
-			if cachedModuleBytes, found := b.cacheManager.Get(file.Path); found {
+			if cachedData, found := b.cacheManager.Get(file.Path); found {
 				// Unmarshal the cached module
 				var cachedModule Module
-				if err := json.Unmarshal(cachedModuleBytes, &cachedModule); err == nil {
+				if err := json.Unmarshal(cachedData.ModuleJSON, &cachedModule); err == nil {
+					// Add module to graph
 					graph.AddModule(&cachedModule)
+
+					// Restore triples to graph store
+					for _, triple := range cachedData.Triples {
+						if err := graph.Store.Add(triple.Subject, triple.Predicate, triple.Object); err != nil {
+							// Log error but continue - this shouldn't break the build
+							if opts.ReportProgress {
+								fmt.Printf("Warning: failed to restore triple for %s: %v\n", file.Path, err)
+							}
+						}
+					}
+
 					cacheHits++
 					continue
 				}
@@ -229,6 +241,9 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 	var moduleURI string
 	var module *Module
 
+	// Collect triples for caching
+	var cacheTriples []cache.Triple
+
 	// Process triples
 	for _, triple := range triples {
 		// Add to triple store
@@ -246,6 +261,13 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 		if err := graph.Store.Add(triple.Subject, triple.Predicate, objectStr); err != nil {
 			return fmt.Errorf("failed to add triple: %w", err)
 		}
+
+		// Store triple for caching
+		cacheTriples = append(cacheTriples, cache.Triple{
+			Subject:   triple.Subject,
+			Predicate: triple.Predicate,
+			Object:    objectStr,
+		})
 
 		// Extract module information
 		if strings.Contains(triple.Predicate, "rdf-syntax-ns#type") &&
@@ -265,10 +287,10 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 	if module != nil {
 		graph.AddModule(module)
 
-		// Cache the module if caching is enabled
+		// Cache the module and its triples if caching is enabled
 		if useCache && b.cacheManager != nil {
 			// Ignore cache write errors - caching is not critical
-			_ = b.cacheManager.Set(file.Path, module)
+			_ = b.cacheManager.Set(file.Path, module, cacheTriples)
 		}
 	}
 
