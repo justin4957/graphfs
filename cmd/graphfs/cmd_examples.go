@@ -182,7 +182,7 @@ func parseTemplateVariables(cmd *cobra.Command, tmpl *query.QueryTemplate) map[s
 				value := parts[1]
 				// Skip known flags
 				if key != "output" && key != "category" && key != "config" &&
-				   key != "verbose" && key != "quiet" && key != "no-color" {
+					key != "verbose" && key != "quiet" && key != "no-color" {
 					variables[key] = value
 				}
 			}
@@ -255,8 +255,8 @@ func runExamplesList(cmd *cobra.Command, args []string) error {
 
 	// Print templates by category
 	for _, cat := range categories {
-		// Category header
-		categoryTitle := strings.Title(cat)
+		// Category header - capitalize first letter
+		categoryTitle := strings.ToUpper(cat[:1]) + cat[1:]
 		if noColor {
 			fmt.Printf("%s:\n", categoryTitle)
 		} else {
