@@ -187,7 +187,7 @@ func (m *Manager) Get(filePath string) (*CachedData, bool) {
 	moduleBytes, err := json.Marshal(cached.Module)
 	if err != nil {
 		m.misses++
-		m.hits-- // Undo the hit count
+		m.hits--             // Undo the hit count
 		_ = m.saveCounters() // Persist counter update
 		return nil, false
 	}
