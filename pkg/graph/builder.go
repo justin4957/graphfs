@@ -38,21 +38,24 @@ Builder, BuildOptions, NewBuilder
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/justin4957/graphfs/internal/store"
+	"github.com/justin4957/graphfs/pkg/cache"
 	"github.com/justin4957/graphfs/pkg/parser"
 	"github.com/justin4957/graphfs/pkg/scanner"
 )
 
 // Builder builds knowledge graphs from codebases
 type Builder struct {
-	scanner   *scanner.Scanner
-	parser    *parser.Parser
-	validator *Validator
+	scanner      *scanner.Scanner
+	parser       *parser.Parser
+	validator    *Validator
+	cacheManager *cache.Manager
 }
 
 // BuildOptions configures graph building
@@ -60,6 +63,7 @@ type BuildOptions struct {
 	ScanOptions    scanner.ScanOptions // Scanner configuration
 	Validate       bool                // Validate graph after building
 	ReportProgress bool                // Report progress during build
+	UseCache       bool                // Enable persistent caching
 }
 
 // NewBuilder creates a new graph builder
@@ -79,6 +83,20 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 	absRoot, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve root path: %w", err)
+	}
+
+	// Initialize cache if enabled
+	if opts.UseCache && b.cacheManager == nil {
+		cacheManager, err := cache.NewManager(absRoot)
+		if err != nil {
+			if opts.ReportProgress {
+				fmt.Printf("Warning: failed to initialize cache: %v\n", err)
+			}
+			opts.UseCache = false // Disable cache if initialization fails
+		} else {
+			b.cacheManager = cacheManager
+			defer b.cacheManager.Close()
+		}
 	}
 
 	// Create new triple store and graph
@@ -104,17 +122,57 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 		fmt.Println("Parsing LinkedDoc metadata...")
 	}
 
+	cacheHits := 0
+	cacheMisses := 0
+
 	for _, file := range scanResult.Files {
 		if !file.HasLinkedDoc {
 			continue
 		}
 
-		if err := b.processFile(*file, graph, absRoot); err != nil {
+		// Try to get module from cache
+		if opts.UseCache && b.cacheManager != nil {
+			if cachedData, found := b.cacheManager.Get(file.Path); found {
+				// Unmarshal the cached module
+				var cachedModule Module
+				if err := json.Unmarshal(cachedData.ModuleJSON, &cachedModule); err == nil {
+					// Add module to graph
+					graph.AddModule(&cachedModule)
+
+					// Restore triples to graph store
+					for _, triple := range cachedData.Triples {
+						if err := graph.Store.Add(triple.Subject, triple.Predicate, triple.Object); err != nil {
+							// Log error but continue - this shouldn't break the build
+							if opts.ReportProgress {
+								fmt.Printf("Warning: failed to restore triple for %s: %v\n", file.Path, err)
+							}
+						}
+					}
+
+					cacheHits++
+					continue
+				}
+				// If unmarshal fails, fall through to re-parse
+			}
+			cacheMisses++
+		}
+
+		if err := b.processFile(*file, graph, absRoot, opts.UseCache); err != nil {
 			if opts.ReportProgress {
 				fmt.Printf("Warning: failed to process %s: %v\n", file.Path, err)
 			}
 			continue
 		}
+	}
+
+	// Report cache statistics
+	if opts.ReportProgress && opts.UseCache && b.cacheManager != nil {
+		total := cacheHits + cacheMisses
+		hitRate := 0.0
+		if total > 0 {
+			hitRate = float64(cacheHits) / float64(total) * 100
+		}
+		fmt.Printf("Cache: %d hits, %d misses (%.1f%% hit rate)\n", cacheHits, cacheMisses, hitRate)
 	}
 
 	// Update statistics
@@ -166,7 +224,7 @@ func (b *Builder) Rebuild(rootPath string, opts BuildOptions) (*Graph, error) {
 }
 
 // processFile parses a file and adds it to the graph
-func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath string) error {
+func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath string, useCache bool) error {
 	// Parse LinkedDoc metadata
 	triples, err := b.parser.Parse(file.Path)
 	if err != nil {
@@ -182,6 +240,9 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 	// Create module if it doesn't exist
 	var moduleURI string
 	var module *Module
+
+	// Collect triples for caching
+	var cacheTriples []cache.Triple
 
 	// Process triples
 	for _, triple := range triples {
@@ -201,6 +262,13 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 			return fmt.Errorf("failed to add triple: %w", err)
 		}
 
+		// Store triple for caching
+		cacheTriples = append(cacheTriples, cache.Triple{
+			Subject:   triple.Subject,
+			Predicate: triple.Predicate,
+			Object:    objectStr,
+		})
+
 		// Extract module information
 		if strings.Contains(triple.Predicate, "rdf-syntax-ns#type") &&
 			strings.Contains(objectStr, "Module") {
@@ -218,6 +286,12 @@ func (b *Builder) processFile(file scanner.FileInfo, graph *Graph, rootPath stri
 	// Add module to graph if we found one
 	if module != nil {
 		graph.AddModule(module)
+
+		// Cache the module and its triples if caching is enabled
+		if useCache && b.cacheManager != nil {
+			// Ignore cache write errors - caching is not critical
+			_ = b.cacheManager.Set(file.Path, module, cacheTriples)
+		}
 	}
 
 	return nil
