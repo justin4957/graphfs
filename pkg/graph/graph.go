@@ -33,6 +33,7 @@ Graph, GraphStats
 package graph
 
 import (
+	"sync"
 	"time"
 
 	"github.com/justin4957/graphfs/internal/store"
@@ -44,6 +45,7 @@ type Graph struct {
 	Root       string             // Root directory path
 	Modules    map[string]*Module // Modules indexed by path
 	Statistics GraphStats         // Graph statistics
+	mu         sync.Mutex         // Mutex for thread-safe operations
 }
 
 // GraphStats provides statistics about the knowledge graph
@@ -74,8 +76,11 @@ func (g *Graph) GetModule(path string) *Module {
 	return g.Modules[path]
 }
 
-// AddModule adds a module to the graph
+// AddModule adds a module to the graph (thread-safe)
 func (g *Graph) AddModule(module *Module) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	g.Modules[module.Path] = module
 	g.Statistics.TotalModules++
 

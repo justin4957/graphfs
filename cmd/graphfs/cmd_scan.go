@@ -55,6 +55,7 @@ var (
 	scanStats    bool
 	scanOutput   string
 	scanNoCache  bool
+	scanWorkers  int
 )
 
 // scanCmd represents the scan command
@@ -71,7 +72,9 @@ Examples:
   graphfs scan /path/to/project          # Scan specific directory
   graphfs scan --validate                # Scan with validation
   graphfs scan --stats                   # Show detailed statistics
-  graphfs scan --output graph.json       # Export graph to JSON`,
+  graphfs scan --output graph.json       # Export graph to JSON
+  graphfs scan --workers 4               # Use 4 parallel workers
+  graphfs scan --workers 1               # Sequential processing`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runScan,
 }
@@ -83,6 +86,7 @@ func init() {
 	scanCmd.Flags().BoolVar(&scanStats, "stats", false, "Show detailed statistics")
 	scanCmd.Flags().StringVarP(&scanOutput, "output", "o", "", "Export graph to file")
 	scanCmd.Flags().BoolVar(&scanNoCache, "no-cache", false, "Disable persistent caching")
+	scanCmd.Flags().IntVarP(&scanWorkers, "workers", "w", 0, "Number of parallel workers (0 = NumCPU)")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
@@ -123,6 +127,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		UseDefaults:     true,
 		IgnoreFiles:     []string{".gitignore", ".graphfsignore"},
 		Concurrent:      true,
+		Workers:         scanWorkers, // 0 = use NumCPU
 	}
 
 	if len(scanInclude) > 0 {
