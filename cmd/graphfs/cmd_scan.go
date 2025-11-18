@@ -42,9 +42,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/justin4957/graphfs/pkg/cli"
 	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/scanner"
-	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -92,6 +92,9 @@ func init() {
 func runScan(cmd *cobra.Command, args []string) error {
 	startTime := time.Now()
 
+	// Create output formatter
+	out := cli.NewOutputFormatter(quiet, verbose, noColor)
+
 	// Determine target path
 	targetPath := "."
 	if len(args) > 0 {
@@ -113,9 +116,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	configPath := filepath.Join(absPath, ".graphfs", "config.yaml")
 	config, err := loadConfig(configPath)
 	if err != nil {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "Warning: Could not load config, using defaults: %v\n", err)
-		}
+		out.Debug("Could not load config, using defaults: %v", err)
 		config = DefaultConfig()
 	}
 
@@ -137,7 +138,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		scanOpts.ExcludePatterns = append(scanOpts.ExcludePatterns, scanExclude...)
 	}
 
-	fmt.Println("Scanning codebase...")
+	out.Info("📊 Scanning codebase...")
 
 	// Build graph
 	builder := graph.NewBuilder()
@@ -153,72 +154,82 @@ func runScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build graph: %w", err)
 	}
 
-	// Show progress with modules (simulating progress bar)
-	if !verbose {
-		bar := progressbar.Default(int64(graphObj.Statistics.TotalModules), "Parsing LinkedDoc")
-		for i := 0; i < graphObj.Statistics.TotalModules; i++ {
-			bar.Add(1)
-		}
-		fmt.Println()
-	}
-
 	// Print summary
-	fmt.Println("\nBuilding graph...")
-	fmt.Printf("  ✓ %d modules\n", graphObj.Statistics.TotalModules)
-	fmt.Printf("  ✓ %d triples\n", graphObj.Statistics.TotalTriples)
-	fmt.Printf("  ✓ %d relationships\n", graphObj.Statistics.TotalRelationships)
+	out.Println("")
+	out.Success("Knowledge graph built successfully")
+	out.KeyValue("Modules", graphObj.Statistics.TotalModules)
+	out.KeyValue("Triples", graphObj.Statistics.TotalTriples)
+	out.KeyValue("Relationships", graphObj.Statistics.TotalRelationships)
 
 	// Show validation results if requested
 	if scanValidate {
 		validator := graph.NewValidator()
 		result := validator.Validate(graphObj)
-		fmt.Printf("  ✓ %d errors, %d warnings\n", len(result.Errors), len(result.Warnings))
 
 		if len(result.Errors) > 0 {
-			fmt.Println("\nValidation Errors:")
+			out.Println("")
+			out.Error("Validation found %d errors", len(result.Errors))
 			for _, err := range result.Errors {
-				fmt.Printf("  ✗ %s\n", err)
+				out.Error("  %s", err)
 			}
 		}
 
-		if len(result.Warnings) > 0 && verbose {
-			fmt.Println("\nValidation Warnings:")
-			for _, warn := range result.Warnings {
-				fmt.Printf("  ⚠ %s\n", warn)
+		if len(result.Warnings) > 0 {
+			out.Println("")
+			out.Warning("Validation found %d warnings", len(result.Warnings))
+			if verbose {
+				for _, warn := range result.Warnings {
+					out.Warning("  %s", warn)
+				}
 			}
+		}
+
+		if len(result.Errors) == 0 && len(result.Warnings) == 0 {
+			out.Success("Validation passed with no errors or warnings")
 		}
 	}
 
 	// Show detailed statistics if requested
 	if scanStats {
-		fmt.Println("\nDetailed Statistics:")
-		fmt.Printf("  Modules by Language:\n")
-		for lang, count := range graphObj.Statistics.ModulesByLanguage {
-			fmt.Printf("    %s: %d\n", lang, count)
+		out.Header("Detailed Statistics")
+
+		if len(graphObj.Statistics.ModulesByLanguage) > 0 {
+			out.Println("\nModules by Language:")
+			headers := []string{"Language", "Count"}
+			rows := [][]string{}
+			for lang, count := range graphObj.Statistics.ModulesByLanguage {
+				rows = append(rows, []string{lang, fmt.Sprintf("%d", count)})
+			}
+			out.Table(headers, rows)
 		}
-		fmt.Printf("  Modules by Layer:\n")
-		for layer, count := range graphObj.Statistics.ModulesByLayer {
-			fmt.Printf("    %s: %d\n", layer, count)
+
+		if len(graphObj.Statistics.ModulesByLayer) > 0 {
+			out.Println("\nModules by Layer:")
+			headers := []string{"Layer", "Count"}
+			rows := [][]string{}
+			for layer, count := range graphObj.Statistics.ModulesByLayer {
+				rows = append(rows, []string{layer, fmt.Sprintf("%d", count)})
+			}
+			out.Table(headers, rows)
 		}
 	}
 
 	duration := time.Since(startTime)
-	fmt.Printf("\n✓ Graph built successfully in %v\n", duration.Round(time.Millisecond))
+	out.Println("")
+	out.Success("Graph built in %v", duration.Round(time.Millisecond))
 
 	// Export graph if requested
 	if scanOutput != "" {
 		if err := exportGraph(graphObj, scanOutput); err != nil {
 			return fmt.Errorf("failed to export graph: %w", err)
 		}
-		fmt.Printf("✓ Graph exported to %s\n", scanOutput)
+		out.Success("Graph exported to %s", scanOutput)
 	}
 
 	// Save graph to store (for future use)
 	storeDir := filepath.Join(absPath, ".graphfs", "store")
 	if err := os.MkdirAll(storeDir, 0755); err != nil {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "Warning: Could not create store directory: %v\n", err)
-		}
+		out.Debug("Could not create store directory: %v", err)
 	}
 
 	return nil
