@@ -82,6 +82,11 @@ func IsURI(s string) bool {
 	return len(s) > 1 && s[0] == '<' && s[len(s)-1] == '>'
 }
 
+// IsLiteral checks if a string is a quoted literal
+func IsLiteral(s string) bool {
+	return len(s) > 1 && s[0] == '"' && s[len(s)-1] == '"'
+}
+
 // StripVariable removes the ? prefix from a variable
 func StripVariable(s string) string {
 	if IsVariable(s) {
@@ -93,6 +98,14 @@ func StripVariable(s string) string {
 // StripURI removes the < > brackets from a URI
 func StripURI(s string) string {
 	if IsURI(s) {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+// StripLiteral removes the quotes from a literal string
+func StripLiteral(s string) string {
+	if IsLiteral(s) {
 		return s[1 : len(s)-1]
 	}
 	return s

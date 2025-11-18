@@ -42,14 +42,30 @@ import (
 
 // Executor executes SPARQL queries against a triple store
 type Executor struct {
-	store *store.TripleStore
+	store          *store.TripleStore
+	planner        *QueryPlanner
+	enablePlanning bool
 }
 
-// NewExecutor creates a new query executor
+// NewExecutor creates a new query executor with query optimization enabled
 func NewExecutor(tripleStore *store.TripleStore) *Executor {
 	return &Executor{
-		store: tripleStore,
+		store:          tripleStore,
+		planner:        NewQueryPlanner(tripleStore.Stats()),
+		enablePlanning: true,
 	}
+}
+
+// DisablePlanning disables query optimization (for testing/benchmarking)
+func (e *Executor) DisablePlanning() {
+	e.enablePlanning = false
+}
+
+// EnablePlanning enables query optimization (default)
+func (e *Executor) EnablePlanning() {
+	e.enablePlanning = true
+	// Refresh statistics
+	e.planner = NewQueryPlanner(e.store.Stats())
 }
 
 // QueryResult represents the result of a query execution
@@ -80,12 +96,18 @@ func (e *Executor) ExecuteString(queryStr string) (*QueryResult, error) {
 
 // executeSelect executes a SELECT query
 func (e *Executor) executeSelect(query *SelectQuery) (*QueryResult, error) {
+	// Optimize query if planning is enabled
+	optimizedQuery := query
+	if e.enablePlanning {
+		optimizedQuery = e.planner.OptimizeQuery(query)
+	}
+
 	// Start with all possible bindings
 	bindings := []map[string]string{{}}
 
-	// Process each triple pattern
-	for _, pattern := range query.Where {
-		bindings = e.matchPattern(pattern, bindings, query.Prefixes)
+	// Process each triple pattern (in optimized order)
+	for _, pattern := range optimizedQuery.Where {
+		bindings = e.matchPattern(pattern, bindings, optimizedQuery.Prefixes)
 	}
 
 	// Apply filters
@@ -192,6 +214,11 @@ func (e *Executor) resolveValue(value string, binding map[string]string, prefixe
 		}
 		// Unbound variable - use empty string as wildcard
 		return ""
+	}
+
+	// Strip literal quotes if present - the store uses plain values without quotes
+	if IsLiteral(value) {
+		return StripLiteral(value)
 	}
 
 	// Strip URI brackets if present - the store uses canonical form without brackets
