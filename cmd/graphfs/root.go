@@ -79,6 +79,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(examplesCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
