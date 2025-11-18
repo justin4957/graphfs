@@ -49,6 +49,7 @@ var (
 	cfgFile string
 	verbose bool
 	noColor bool
+	quiet   bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -71,6 +72,7 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .graphfs/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "minimal output (for scripting)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 
 	// Add subcommands

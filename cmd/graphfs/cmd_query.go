@@ -40,6 +40,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/justin4957/graphfs/pkg/cli"
 	"github.com/justin4957/graphfs/pkg/graph"
 	"github.com/justin4957/graphfs/pkg/query"
 	"github.com/justin4957/graphfs/pkg/scanner"
@@ -86,6 +87,9 @@ func init() {
 }
 
 func runQuery(cmd *cobra.Command, args []string) error {
+	// Create output formatter
+	out := cli.NewOutputFormatter(quiet, verbose, noColor)
+
 	// Get query string
 	var queryString string
 	if queryFile != "" {
@@ -115,9 +119,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build graph (in a real implementation, we would load from store)
-	if verbose {
-		fmt.Println("Building knowledge graph...")
-	}
+	out.Debug("Building knowledge graph...")
 
 	builder := graph.NewBuilder()
 	graphObj, err := builder.Build(currentDir, graph.BuildOptions{
@@ -132,11 +134,9 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build graph: %w", err)
 	}
 
-	if verbose {
-		fmt.Printf("Graph loaded: %d modules, %d triples\n",
-			graphObj.Statistics.TotalModules,
-			graphObj.Statistics.TotalTriples)
-	}
+	out.Debug("Graph loaded: %d modules, %d triples",
+		graphObj.Statistics.TotalModules,
+		graphObj.Statistics.TotalTriples)
 
 	// Execute query
 	executor := query.NewExecutor(graphObj.Store)
@@ -167,7 +167,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		if err := os.WriteFile(queryOutput, []byte(output), 0644); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
-		fmt.Printf("Results written to %s\n", queryOutput)
+		out.Success("Results written to %s", queryOutput)
 	} else {
 		fmt.Println(output)
 	}
