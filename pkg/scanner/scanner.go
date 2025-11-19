@@ -76,9 +76,13 @@ type ScanOptions struct {
 	MaxFileSize     int64
 	FollowSymlinks  bool
 	IgnoreFiles     []string
-	UseDefaults     bool // Use default ignore patterns
-	Concurrent      bool // Enable concurrent scanning
-	Workers         int  // Number of parallel workers (0 = NumCPU)
+	UseDefaults     bool          // Use default ignore patterns
+	Concurrent      bool          // Enable concurrent scanning
+	Workers         int           // Number of parallel workers (0 = NumCPU)
+	StrictMode      bool          // Abort on first error
+	MaxErrors       int           // Stop after N errors (0 = unlimited)
+	Timeout         time.Duration // Overall operation timeout (0 = no timeout)
+	FileTimeout     time.Duration // Per-file parse timeout (0 = no timeout)
 }
 
 // DefaultScanOptions returns default scan options
@@ -95,11 +99,13 @@ func DefaultScanOptions() ScanOptions {
 
 // ScanResult contains the results of a scan operation
 type ScanResult struct {
-	Files      []*FileInfo
-	TotalFiles int
-	TotalBytes int64
-	Errors     []error
-	Duration   time.Duration
+	Files        []*FileInfo
+	TotalFiles   int
+	TotalBytes   int64
+	Errors       *ErrorCollector
+	FilesScanned int
+	FilesFailed  int
+	Duration     time.Duration
 }
 
 // FileInfo contains information about a scanned file
@@ -138,14 +144,19 @@ func (s *Scanner) Scan(rootPath string, opts ScanOptions) (*ScanResult, error) {
 
 	result := &ScanResult{
 		Files:  make([]*FileInfo, 0),
-		Errors: make([]error, 0),
+		Errors: NewErrorCollector(),
 	}
 
 	// Scan based on concurrency setting
 	if opts.Concurrent {
-		s.scanConcurrent(absPath, ignoreMatcher, opts, result)
+		err = s.scanConcurrent(absPath, ignoreMatcher, opts, result)
 	} else {
-		s.scanSequential(absPath, ignoreMatcher, opts, result)
+		err = s.scanSequential(absPath, ignoreMatcher, opts, result)
+	}
+
+	// Check if scan was aborted due to strict mode or max errors
+	if err != nil {
+		return nil, err
 	}
 
 	result.Duration = time.Since(startTime)
@@ -160,10 +171,27 @@ func (s *Scanner) Scan(rootPath string, opts ScanOptions) (*ScanResult, error) {
 }
 
 // scanSequential performs sequential directory scanning
-func (s *Scanner) scanSequential(rootPath string, ignoreMatcher *IgnoreMatcher, opts ScanOptions, result *ScanResult) {
+func (s *Scanner) scanSequential(rootPath string, ignoreMatcher *IgnoreMatcher, opts ScanOptions, result *ScanResult) error {
+	var scanErr error
+
 	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			result.Errors = append(result.Errors, fmt.Errorf("error accessing %s: %w", path, err))
+			result.Errors.Add(path, err)
+			result.FilesScanned++
+			result.FilesFailed++
+
+			// Strict mode: abort immediately
+			if opts.StrictMode {
+				scanErr = fmt.Errorf("strict mode: %s: %w", path, err)
+				return scanErr
+			}
+
+			// Max errors check
+			if opts.MaxErrors > 0 && result.FilesFailed >= opts.MaxErrors {
+				scanErr = fmt.Errorf("max errors (%d) reached", opts.MaxErrors)
+				return scanErr
+			}
+
 			return nil
 		}
 
@@ -191,10 +219,26 @@ func (s *Scanner) scanSequential(rootPath string, ignoreMatcher *IgnoreMatcher, 
 			}
 		}
 
+		result.FilesScanned++
+
 		// Scan the file
 		fileInfo, err := s.ScanFile(path)
 		if err != nil {
-			result.Errors = append(result.Errors, fmt.Errorf("error scanning %s: %w", path, err))
+			result.Errors.Add(path, err)
+			result.FilesFailed++
+
+			// Strict mode: abort immediately
+			if opts.StrictMode {
+				scanErr = fmt.Errorf("strict mode: %s: %w", path, err)
+				return scanErr
+			}
+
+			// Max errors check
+			if opts.MaxErrors > 0 && result.FilesFailed >= opts.MaxErrors {
+				scanErr = fmt.Errorf("max errors (%d) reached", opts.MaxErrors)
+				return scanErr
+			}
+
 			return nil
 		}
 
@@ -210,14 +254,18 @@ func (s *Scanner) scanSequential(rootPath string, ignoreMatcher *IgnoreMatcher, 
 
 		return nil
 	})
+
+	return scanErr
 }
 
 // scanConcurrent performs concurrent directory scanning
-func (s *Scanner) scanConcurrent(rootPath string, ignoreMatcher *IgnoreMatcher, opts ScanOptions, result *ScanResult) {
+func (s *Scanner) scanConcurrent(rootPath string, ignoreMatcher *IgnoreMatcher, opts ScanOptions, result *ScanResult) error {
 	var (
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-		fileChan = make(chan string, 100)
+		wg        sync.WaitGroup
+		mu        sync.Mutex
+		fileChan  = make(chan string, 100)
+		errorChan = make(chan error, 1)
+		scanErr   error
 	)
 
 	// Determine number of workers
@@ -232,11 +280,36 @@ func (s *Scanner) scanConcurrent(rootPath string, ignoreMatcher *IgnoreMatcher, 
 		go func() {
 			defer wg.Done()
 			for path := range fileChan {
+				mu.Lock()
+				result.FilesScanned++
+				mu.Unlock()
+
 				fileInfo, err := s.ScanFile(path)
 				if err != nil {
 					mu.Lock()
-					result.Errors = append(result.Errors, fmt.Errorf("error scanning %s: %w", path, err))
+					result.Errors.Add(path, err)
+					result.FilesFailed++
+					failCount := result.FilesFailed
 					mu.Unlock()
+
+					// Strict mode: signal error
+					if opts.StrictMode {
+						select {
+						case errorChan <- fmt.Errorf("strict mode: %s: %w", path, err):
+						default:
+						}
+						return
+					}
+
+					// Max errors check
+					if opts.MaxErrors > 0 && failCount >= opts.MaxErrors {
+						select {
+						case errorChan <- fmt.Errorf("max errors (%d) reached", opts.MaxErrors):
+						default:
+						}
+						return
+					}
+
 					continue
 				}
 
@@ -257,10 +330,33 @@ func (s *Scanner) scanConcurrent(rootPath string, ignoreMatcher *IgnoreMatcher, 
 
 	// Walk directory and send files to workers
 	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+		// Check if we hit an error from workers
+		select {
+		case scanErr = <-errorChan:
+			return scanErr
+		default:
+		}
+
 		if err != nil {
 			mu.Lock()
-			result.Errors = append(result.Errors, fmt.Errorf("error accessing %s: %w", path, err))
+			result.Errors.Add(path, err)
+			result.FilesScanned++
+			result.FilesFailed++
+			failCount := result.FilesFailed
 			mu.Unlock()
+
+			// Strict mode: abort immediately
+			if opts.StrictMode {
+				scanErr = fmt.Errorf("strict mode: %s: %w", path, err)
+				return scanErr
+			}
+
+			// Max errors check
+			if opts.MaxErrors > 0 && failCount >= opts.MaxErrors {
+				scanErr = fmt.Errorf("max errors (%d) reached", opts.MaxErrors)
+				return scanErr
+			}
+
 			return nil
 		}
 
@@ -290,6 +386,14 @@ func (s *Scanner) scanConcurrent(rootPath string, ignoreMatcher *IgnoreMatcher, 
 
 	close(fileChan)
 	wg.Wait()
+
+	// Check for errors from workers after completion
+	select {
+	case scanErr = <-errorChan:
+	default:
+	}
+
+	return scanErr
 }
 
 // ScanFile scans a single file
