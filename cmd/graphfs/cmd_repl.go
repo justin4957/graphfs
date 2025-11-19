@@ -122,7 +122,7 @@ func runREPL(cmd *cobra.Command, args []string) error {
 	builder := graph.NewBuilder()
 	buildOpts := graph.BuildOptions{
 		ScanOptions: scanOpts,
-		Validate:    true,
+		Validate:    false, // Disable validation for REPL to avoid circular dependency false positives
 	}
 
 	g, err := builder.Build(rootPath, buildOpts)
