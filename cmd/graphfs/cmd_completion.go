@@ -42,6 +42,12 @@ var completionCmd = &cobra.Command{
 	Short: "Generate shell completion scripts",
 	Long: `Generate shell completion scripts for GraphFS.
 
+IMPORTANT: Use the completion script that matches your shell!
+- Check your shell: echo $SHELL
+- Zsh users: use 'graphfs completion zsh' (not bash)
+- Bash users: use 'graphfs completion bash'
+- Fish users: use 'graphfs completion fish'
+
 To load completions:
 
 Bash:

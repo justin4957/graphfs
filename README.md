@@ -51,6 +51,12 @@ graphfs scan --output graph.json
 
 GraphFS supports tab completion for Bash, Zsh, and Fish shells to improve CLI usability with intelligent suggestions for commands, flags, module paths, layers, and more.
 
+**IMPORTANT**: Use the completion script that matches your shell!
+- Check your shell: `echo $SHELL`
+- Zsh users (macOS default): use `graphfs completion zsh`
+- Bash users: use `graphfs completion bash`
+- Fish users: use `graphfs completion fish`
+
 ### Bash
 
 ```bash
