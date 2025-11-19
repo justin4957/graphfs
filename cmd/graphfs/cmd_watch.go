@@ -232,14 +232,10 @@ func runWatch(cmd *cobra.Command, args []string) error {
 
 // executeQuery runs a query and displays results
 func executeQuery(executor *query.Executor, queryString string, green, yellow, red *color.Color) error {
-	startTime := time.Now()
-
 	result, err := executor.ExecuteString(queryString)
 	if err != nil {
 		return fmt.Errorf("query failed: %w", err)
 	}
-
-	duration := time.Since(startTime)
 
 	// Display results
 	if result.Count == 0 {
@@ -247,12 +243,14 @@ func executeQuery(executor *query.Executor, queryString string, green, yellow, r
 		return nil
 	}
 
-	green.Printf("Results (%d) in %v:\n", result.Count, duration)
+	green.Printf("Results (%d):\n", result.Count)
 	for _, bindings := range result.Bindings {
-		for key, value := range bindings {
-			fmt.Printf("  %s: %s\n", key, value)
+		// Display each binding in a compact format
+		for _, variable := range result.Variables {
+			if value, ok := bindings[variable]; ok {
+				fmt.Printf("  • %s\n", value)
+			}
 		}
-		fmt.Println()
 	}
 
 	return nil
