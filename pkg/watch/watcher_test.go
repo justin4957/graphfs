@@ -84,7 +84,7 @@ func TestWatcher_FileChange(t *testing.T) {
 
 	opts := DefaultWatchOptions()
 	opts.Path = tmpDir
-	opts.Debounce = 50 * time.Millisecond
+	opts.Debounce = 100 * time.Millisecond
 
 	watcher, err := NewWatcher(g, opts, func(graph *graph.Graph, files []string) {
 		changeCount.Add(1)
@@ -97,8 +97,8 @@ func TestWatcher_FileChange(t *testing.T) {
 
 	watcher.Start()
 
-	// Wait for watcher to be ready
-	time.Sleep(100 * time.Millisecond)
+	// Wait for watcher to be ready (longer for CI with race detector)
+	time.Sleep(300 * time.Millisecond)
 
 	// Create a test file
 	testFile := filepath.Join(tmpDir, "test.go")
@@ -110,8 +110,8 @@ func Example() {}
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	// Wait for debounce and processing
-	time.Sleep(200 * time.Millisecond)
+	// Wait for debounce and processing (longer for CI with race detector)
+	time.Sleep(500 * time.Millisecond)
 
 	if changeCount.Load() == 0 {
 		t.Error("Expected change callback to be called")
