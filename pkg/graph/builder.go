@@ -40,6 +40,7 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -114,6 +115,13 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 	scanResult, err := b.scanner.Scan(absRoot, opts.ScanOptions)
 	if err != nil {
 		return nil, fmt.Errorf("scan failed: %w", err)
+	}
+
+	// Report scan errors if any (for partial results)
+	if scanResult.Errors.HasErrors() && opts.ReportProgress {
+		fmt.Fprint(os.Stderr, scanResult.Errors.Report())
+		fmt.Fprintf(os.Stderr, "\n✓ Partial scan results: %d files scanned, %d files failed\n",
+			scanResult.FilesScanned, scanResult.FilesFailed)
 	}
 
 	if opts.ReportProgress {

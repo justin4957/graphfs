@@ -49,13 +49,15 @@ import (
 )
 
 var (
-	scanInclude  []string
-	scanExclude  []string
-	scanValidate bool
-	scanStats    bool
-	scanOutput   string
-	scanNoCache  bool
-	scanWorkers  int
+	scanInclude   []string
+	scanExclude   []string
+	scanValidate  bool
+	scanStats     bool
+	scanOutput    string
+	scanNoCache   bool
+	scanWorkers   int
+	scanStrict    bool
+	scanMaxErrors int
 )
 
 // scanCmd represents the scan command
@@ -67,6 +69,11 @@ var scanCmd = &cobra.Command{
 The scan command discovers all files with LinkedDoc metadata, parses them,
 and builds a queryable knowledge graph stored in .graphfs/store.db.
 
+Error Handling:
+  By default, GraphFS continues on errors and returns partial results.
+  Use --strict to abort on first error (useful for CI/CD).
+  Use --max-errors N to limit error tolerance.
+
 Examples:
   graphfs scan                           # Scan current directory
   graphfs scan /path/to/project          # Scan specific directory
@@ -74,7 +81,8 @@ Examples:
   graphfs scan --stats                   # Show detailed statistics
   graphfs scan --output graph.json       # Export graph to JSON
   graphfs scan --workers 4               # Use 4 parallel workers
-  graphfs scan --workers 1               # Sequential processing`,
+  graphfs scan --strict                  # Abort on first error
+  graphfs scan --max-errors 10           # Stop after 10 errors`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runScan,
 }
@@ -87,6 +95,8 @@ func init() {
 	scanCmd.Flags().StringVarP(&scanOutput, "output", "o", "", "Export graph to file")
 	scanCmd.Flags().BoolVar(&scanNoCache, "no-cache", false, "Disable persistent caching")
 	scanCmd.Flags().IntVarP(&scanWorkers, "workers", "w", 0, "Number of parallel workers (0 = NumCPU)")
+	scanCmd.Flags().BoolVar(&scanStrict, "strict", false, "Abort on first error (for CI/CD)")
+	scanCmd.Flags().IntVar(&scanMaxErrors, "max-errors", 0, "Stop after N errors (0 = unlimited)")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
@@ -129,6 +139,8 @@ func runScan(cmd *cobra.Command, args []string) error {
 		IgnoreFiles:     []string{".gitignore", ".graphfsignore"},
 		Concurrent:      true,
 		Workers:         scanWorkers, // 0 = use NumCPU
+		StrictMode:      scanStrict,
+		MaxErrors:       scanMaxErrors,
 	}
 
 	if len(scanInclude) > 0 {
