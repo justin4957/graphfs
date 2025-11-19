@@ -93,6 +93,34 @@ func (g *Graph) AddModule(module *Module) {
 	}
 }
 
+// RemoveModule removes a module from the graph
+func (g *Graph) RemoveModule(path string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	module, exists := g.Modules[path]
+	if !exists {
+		return
+	}
+
+	// Update statistics
+	g.Statistics.TotalModules--
+	if module.Language != "" {
+		g.Statistics.ModulesByLanguage[module.Language]--
+		if g.Statistics.ModulesByLanguage[module.Language] <= 0 {
+			delete(g.Statistics.ModulesByLanguage, module.Language)
+		}
+	}
+	if module.Layer != "" {
+		g.Statistics.ModulesByLayer[module.Layer]--
+		if g.Statistics.ModulesByLayer[module.Layer] <= 0 {
+			delete(g.Statistics.ModulesByLayer, module.Layer)
+		}
+	}
+
+	delete(g.Modules, path)
+}
+
 // GetModulesByLanguage returns all modules for a given language
 func (g *Graph) GetModulesByLanguage(language string) []*Module {
 	var modules []*Module
