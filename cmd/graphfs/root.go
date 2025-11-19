@@ -81,6 +81,11 @@ func init() {
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(examplesCmd)
 	rootCmd.AddCommand(versionCmd)
+
+	// Register shell completions
+	if err := registerCompletions(); err != nil {
+		fmt.Fprintf(rootCmd.ErrOrStderr(), "Warning: failed to register completions: %v\n", err)
+	}
 }
 
 // versionCmd represents the version command
