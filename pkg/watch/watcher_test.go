@@ -3,6 +3,7 @@ package watch
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -81,6 +82,7 @@ func TestWatcher_FileChange(t *testing.T) {
 
 	var changeCount atomic.Int32
 	var changedFiles []string
+	var mu sync.Mutex
 
 	opts := DefaultWatchOptions()
 	opts.Path = tmpDir
@@ -88,7 +90,9 @@ func TestWatcher_FileChange(t *testing.T) {
 
 	watcher, err := NewWatcher(g, opts, func(graph *graph.Graph, files []string) {
 		changeCount.Add(1)
+		mu.Lock()
 		changedFiles = files
+		mu.Unlock()
 	})
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
@@ -117,7 +121,11 @@ func Example() {}
 		t.Error("Expected change callback to be called")
 	}
 
-	if len(changedFiles) == 0 {
+	mu.Lock()
+	fileCount := len(changedFiles)
+	mu.Unlock()
+
+	if fileCount == 0 {
 		t.Error("Expected changed files list to not be empty")
 	}
 }
