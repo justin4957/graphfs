@@ -62,6 +62,10 @@ func (r *REPL) handleCommand(line string) error {
 		return r.cmdExamples(args)
 	case ".stats":
 		return r.cmdStats(args)
+	case ".modules":
+		return r.cmdModules(args)
+	case ".predicates":
+		return r.cmdPredicates(args)
 	case ".exit", ".quit":
 		return io.EOF
 	default:
@@ -91,13 +95,16 @@ REPL Commands:
   .schema             Show available predicates and types
   .examples           Show example queries
   .stats              Show graph statistics
+  .modules            List all modules (with autocomplete support)
+  .predicates         List all predicates (with autocomplete support)
   .exit               Exit REPL (or Ctrl+D)
 
 Query Features:
   - Multi-line queries: Start typing a query and press Enter on empty line to execute
-  - Tab completion: Press Tab for command and keyword completion
+  - Tab completion: Press Tab for commands, keywords, modules, and predicates
   - History: Use Up/Down arrows to navigate query history
-  - Colors: Syntax highlighting for better readability
+  - Ctrl+R: Reverse search through history
+  - Syntax highlighting: Color-coded SPARQL queries for better readability
 
 Examples:
   SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10
@@ -324,6 +331,98 @@ func (r *REPL) cmdStats(args []string) error {
 	fmt.Printf("\nTotal Dependencies: %d\n", totalDeps)
 	fmt.Printf("Total Exports: %d\n", totalExports)
 
+	return nil
+}
+
+// cmdModules lists all available modules
+func (r *REPL) cmdModules(args []string) error {
+	modules := r.completer.GetModules()
+
+	if len(modules) == 0 {
+		r.printInfo("No modules found")
+		return nil
+	}
+
+	r.printInfo(fmt.Sprintf("Available Modules (%d):", len(modules)))
+	r.printInfo("====================")
+
+	// Group by prefix or show first 50
+	limit := 50
+	if len(args) > 0 {
+		// Filter by prefix
+		prefix := args[0]
+		filtered := FilterSuggestions(modules, prefix)
+		if len(filtered) == 0 {
+			r.printInfo(fmt.Sprintf("No modules matching '%s'", prefix))
+			return nil
+		}
+		modules = filtered
+		limit = len(modules)
+	}
+
+	count := 0
+	for _, mod := range modules {
+		if count >= limit {
+			r.printInfo(fmt.Sprintf("\n... and %d more. Use '.modules <prefix>' to filter.", len(modules)-limit))
+			break
+		}
+		fmt.Printf("  %s\n", mod)
+		count++
+	}
+
+	r.printInfo("\nTip: Use these in queries like: SELECT ?x WHERE { <#module.go> ?p ?x }")
+	return nil
+}
+
+// cmdPredicates lists all available predicates
+func (r *REPL) cmdPredicates(args []string) error {
+	predicates := r.completer.GetPredicates()
+
+	if len(predicates) == 0 {
+		r.printInfo("No predicates found")
+		return nil
+	}
+
+	r.printInfo(fmt.Sprintf("Available Predicates (%d):", len(predicates)))
+	r.printInfo("====================")
+
+	// Group by type
+	hashPredicates := make([]string, 0)
+	codePredicates := make([]string, 0)
+	otherPredicates := make([]string, 0)
+
+	for _, pred := range predicates {
+		if strings.HasPrefix(pred, "<#") {
+			hashPredicates = append(hashPredicates, pred)
+		} else if strings.HasPrefix(pred, "code:") {
+			codePredicates = append(codePredicates, pred)
+		} else {
+			otherPredicates = append(otherPredicates, pred)
+		}
+	}
+
+	if len(hashPredicates) > 0 {
+		fmt.Println("\nShort form (#):")
+		for _, pred := range hashPredicates {
+			fmt.Printf("  %-30s\n", pred)
+		}
+	}
+
+	if len(codePredicates) > 0 {
+		fmt.Println("\nCode ontology (code:):")
+		for _, pred := range codePredicates {
+			fmt.Printf("  %-30s\n", pred)
+		}
+	}
+
+	if len(otherPredicates) > 0 {
+		fmt.Println("\nOther:")
+		for _, pred := range otherPredicates {
+			fmt.Printf("  %-30s\n", pred)
+		}
+	}
+
+	r.printInfo("\nTip: Use these in queries like: SELECT ?x WHERE { ?x <#imports> ?dep }")
 	return nil
 }
 
