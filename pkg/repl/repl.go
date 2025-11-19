@@ -237,7 +237,7 @@ func (r *REPL) executeQuery(queryStr string) {
 
 // setupAutocomplete configures tab completion
 func (r *REPL) setupAutocomplete() {
-	r.rl.Config.AutoComplete = r.completer.GetCompleter()
+	r.rl.Config.AutoComplete = r.completer.GetAutoCompleteFunc()
 }
 
 // printWelcome displays the welcome message

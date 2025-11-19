@@ -34,6 +34,7 @@ package repl
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/chzyer/readline"
 	"github.com/justin4957/graphfs/pkg/graph"
@@ -166,6 +167,89 @@ func (c *Completer) buildPredicateList() {
 // GetCompleter returns a readline completer
 func (c *Completer) GetCompleter() *readline.PrefixCompleter {
 	return readline.NewPrefixCompleter(c.commands...)
+}
+
+// GetAutoCompleteFunc returns a custom autocomplete function for context-aware completion
+func (c *Completer) GetAutoCompleteFunc() readline.AutoCompleter {
+	return &contextCompleter{c}
+}
+
+// contextCompleter implements readline.AutoCompleter for context-aware completion
+type contextCompleter struct {
+	completer *Completer
+}
+
+// Do implements the readline.AutoCompleter interface
+func (cc *contextCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
+	lineStr := string(line[:pos])
+
+	// Get the word being typed
+	words := strings.Fields(lineStr)
+	if len(words) == 0 {
+		return nil, 0
+	}
+
+	// Get the last word (what we're completing)
+	lastWord := ""
+	if pos > 0 && !unicode.IsSpace(rune(line[pos-1])) {
+		lastWord = words[len(words)-1]
+	}
+
+	// Determine what to suggest based on context
+	var suggestions []string
+
+	// Check what context we're in
+	if strings.HasPrefix(lastWord, ".") {
+		// Command completion
+		suggestions = []string{
+			".help", ".format", ".load", ".save", ".history",
+			".clear", ".schema", ".examples", ".stats",
+			".modules", ".predicates", ".exit", ".quit",
+		}
+	} else if strings.HasPrefix(lastWord, "<#") || strings.HasPrefix(lastWord, "<") {
+		// Module or predicate completion
+		suggestions = append(suggestions, cc.completer.predicates...)
+		suggestions = append(suggestions, cc.completer.modules...)
+	} else if strings.HasPrefix(lastWord, "code:") {
+		// Code ontology completion
+		for _, pred := range cc.completer.predicates {
+			if strings.HasPrefix(pred, "code:") {
+				suggestions = append(suggestions, pred)
+			}
+		}
+	} else {
+		// Keyword completion
+		suggestions = cc.completer.keywords
+		// Also add commands and predicates
+		suggestions = append(suggestions, ".help", ".format", ".modules", ".predicates")
+	}
+
+	// Filter suggestions by prefix
+	var matches []string
+	lowerLast := strings.ToLower(lastWord)
+	for _, suggestion := range suggestions {
+		if strings.HasPrefix(strings.ToLower(suggestion), lowerLast) {
+			matches = append(matches, suggestion)
+		}
+	}
+
+	// Convert matches to readline format
+	if len(matches) == 0 {
+		return nil, 0
+	}
+
+	// Calculate the length to replace
+	length = len(lastWord)
+
+	// Convert matches to [][]rune
+	newLine = make([][]rune, len(matches))
+	for i, match := range matches {
+		// Only return the part after what's already typed
+		completion := match[len(lastWord):]
+		newLine[i] = []rune(completion)
+	}
+
+	return newLine, length
 }
 
 // getSPARQLKeywords returns common SPARQL keywords
