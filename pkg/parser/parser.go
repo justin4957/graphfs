@@ -139,6 +139,10 @@ func (p *Parser) ExtractLinkedDoc(content string) (string, error) {
 // parseRDF parses RDF/Turtle triples from LinkedDoc content
 func (p *Parser) parseRDF(content string) ([]Triple, error) {
 	var triples []Triple
+
+	// Preprocess: combine multi-line blank nodes into single lines
+	content = p.normalizeBlankNodes(content)
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	lineNum := 0
 
@@ -180,6 +184,53 @@ func (p *Parser) parseRDF(content string) ([]Triple, error) {
 	}
 
 	return triples, nil
+}
+
+// normalizeBlankNodes combines multi-line blank node structures into single lines
+func (p *Parser) normalizeBlankNodes(content string) string {
+	var result strings.Builder
+	lines := strings.Split(content, "\n")
+
+	var blankNodeBuffer strings.Builder
+	depth := 0
+
+	for _, line := range lines {
+		// Process character by character to track bracket depth
+		lineHasBracket := false
+		for _, ch := range line {
+			if ch == '[' {
+				depth++
+				lineHasBracket = true
+			} else if ch == ']' {
+				depth--
+			}
+		}
+
+		if depth > 0 || lineHasBracket {
+			// We're inside a blank node or starting one
+			blankNodeBuffer.WriteString(line)
+			blankNodeBuffer.WriteString(" ")
+
+			// Check if blank node is now complete
+			if depth == 0 && lineHasBracket {
+				result.WriteString(blankNodeBuffer.String())
+				result.WriteString("\n")
+				blankNodeBuffer.Reset()
+			}
+		} else {
+			// Regular line
+			result.WriteString(line)
+			result.WriteString("\n")
+		}
+	}
+
+	// Add any remaining blank node content (shouldn't happen with well-formed RDF)
+	if blankNodeBuffer.Len() > 0 {
+		result.WriteString(blankNodeBuffer.String())
+		result.WriteString("\n")
+	}
+
+	return result.String()
 }
 
 // parsePrefix parses an @prefix declaration
@@ -241,8 +292,8 @@ func (p *Parser) parseTripleLine(line string, currentSubject string, lineNum int
 func (p *Parser) parsePredicateObjects(subject, line string, lineNum int) ([]Triple, error) {
 	var triples []Triple
 
-	// Split by semicolon for multiple predicate-object pairs
-	pairs := strings.Split(line, ";")
+	// Split by semicolon for multiple predicate-object pairs (but respect brackets)
+	pairs := p.smartSplit(line, ';')
 
 	for _, pair := range pairs {
 		pair = strings.TrimSpace(pair)
@@ -266,8 +317,8 @@ func (p *Parser) parsePredicateObjects(subject, line string, lineNum int) ([]Tri
 		predicate := p.expandPrefix(predicateStr)
 		objectsStr := strings.TrimSpace(parts[1])
 
-		// Split objects by comma
-		objects := strings.Split(objectsStr, ",")
+		// Split objects by comma (but respect brackets)
+		objects := p.smartSplit(objectsStr, ',')
 
 		for _, objStr := range objects {
 			objStr = strings.TrimSpace(objStr)
@@ -285,6 +336,36 @@ func (p *Parser) parsePredicateObjects(subject, line string, lineNum int) ([]Tri
 	}
 
 	return triples, nil
+}
+
+// smartSplit splits a string by delimiter but respects bracket nesting
+func (p *Parser) smartSplit(s string, delim rune) []string {
+	var result []string
+	var current strings.Builder
+	depth := 0
+
+	for _, ch := range s {
+		if ch == '[' {
+			depth++
+			current.WriteRune(ch)
+		} else if ch == ']' {
+			depth--
+			current.WriteRune(ch)
+		} else if ch == delim && depth == 0 {
+			// Only split if we're not inside brackets
+			result = append(result, current.String())
+			current.Reset()
+		} else {
+			current.WriteRune(ch)
+		}
+	}
+
+	// Add the last part
+	if current.Len() > 0 {
+		result = append(result, current.String())
+	}
+
+	return result
 }
 
 // parseObject parses an object value
@@ -309,13 +390,60 @@ func (p *Parser) parseObject(objStr string) TripleObject {
 	}
 
 	// Blank node: [...]
-	if strings.HasPrefix(objStr, "[") && strings.HasSuffix(objStr, "]") {
-		// Simplified blank node handling
-		return NewBlankNode([]Triple{})
+	if strings.HasPrefix(objStr, "[") {
+		triples, err := p.parseBlankNode(objStr)
+		if err != nil {
+			// Fall back to literal if parsing fails
+			return NewLiteral(objStr)
+		}
+		return NewBlankNode(triples)
 	}
 
 	// Default: treat as literal
 	return NewLiteral(objStr)
+}
+
+// parseBlankNode parses a blank node structure: [ predicate object ; ... ]
+func (p *Parser) parseBlankNode(content string) ([]Triple, error) {
+	// Remove outer brackets
+	if !strings.HasPrefix(content, "[") {
+		return nil, fmt.Errorf("blank node must start with [")
+	}
+
+	// Find matching closing bracket
+	depth := 0
+	endIdx := -1
+	for i, ch := range content {
+		if ch == '[' {
+			depth++
+		} else if ch == ']' {
+			depth--
+			if depth == 0 {
+				endIdx = i
+				break
+			}
+		}
+	}
+
+	if endIdx == -1 {
+		return nil, fmt.Errorf("blank node not closed")
+	}
+
+	inner := strings.TrimSpace(content[1:endIdx])
+	if inner == "" {
+		return []Triple{}, nil
+	}
+
+	// Generate unique blank node ID
+	blankNodeID := fmt.Sprintf("_:b%d", len(inner))
+
+	// Parse predicate-object pairs within the blank node
+	triples, err := p.parsePredicateObjects(blankNodeID, inner, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return triples, nil
 }
 
 // expandPrefix expands a prefixed URI to full URI

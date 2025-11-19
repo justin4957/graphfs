@@ -334,3 +334,81 @@ func indexSubstring(s, substr string) int {
 	}
 	return -1
 }
+
+// TestBlankNodeParsing tests partial blank node support.
+// NOTE: Full W3C Turtle blank node parsing is not yet implemented.
+// See issue #72 for status and tracking.
+func TestBlankNodeParsing(t *testing.T) {
+	t.Skip("Blank node parsing is a work in progress. See issue #72.")
+
+	tests := []struct {
+		name        string
+		content     string
+		wantTriples int
+		checkFn     func(*testing.T, []Triple)
+	}{
+		{
+			name: "simple blank node inline - TODO",
+			content: `/*
+<!-- LinkedDoc RDF -->
+@prefix code: <https://schema.codedoc.org/> .
+<#test.go> code:linksTo [ code:name "auth" ; code:path "../auth.go" ] .
+<!-- End LinkedDoc RDF -->
+*/`,
+			wantTriples: 3, // 1 for linksTo pointing to blank node, 2 for blank node properties
+			checkFn: func(t *testing.T, triples []Triple) {
+				// Blank node should be parsed as BlankNodeObject
+				if _, ok := triples[0].Object.(*BlankNodeObject); !ok {
+					t.Errorf("First triple object should be blank node, got %T", triples[0].Object)
+				}
+			},
+		},
+		{
+			name: "multi-line blank node - TODO",
+			content: `/*
+<!-- LinkedDoc RDF -->
+@prefix code: <https://schema.codedoc.org/> .
+<#test.go> code:linksTo [
+    code:name "resolver" ;
+    code:path "../resolver.go" ;
+    code:relationship "uses"
+] .
+<!-- End LinkedDoc RDF -->
+*/`,
+			wantTriples: 4, // 1 for linksTo + 3 properties in blank node
+			checkFn: func(t *testing.T, triples []Triple) {
+				// Blank node should contain 3 property triples
+				bn, ok := triples[0].Object.(*BlankNodeObject)
+				if !ok {
+					t.Errorf("Expected blank node object, got %T", triples[0].Object)
+					return
+				}
+
+				if len(bn.Triples) != 3 {
+					t.Errorf("Blank node should have 3 triples, got %d", len(bn.Triples))
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := NewParser()
+			triples, err := parser.ParseString(tt.content)
+			if err != nil {
+				t.Fatalf("ParseString() error = %v", err)
+			}
+
+			if len(triples) != tt.wantTriples {
+				t.Errorf("ParseString() got %d triples, want %d", len(triples), tt.wantTriples)
+				for i, tr := range triples {
+					t.Logf("Triple %d: %s | %s | %s", i, tr.Subject, tr.Predicate, tr.Object.String())
+				}
+			}
+
+			if tt.checkFn != nil {
+				tt.checkFn(t, triples)
+			}
+		})
+	}
+}
