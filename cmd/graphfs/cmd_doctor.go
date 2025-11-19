@@ -106,9 +106,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			green.Printf("✓ %s", check.Name)
 			if verbose && check.Message != "" {
 				fmt.Printf(" - %s", check.Message)
-			} else if !verbose && check.Message != "" {
-				// Show message in non-verbose mode too if it contains useful info
-				fmt.Printf(" (%s)", check.Message)
 			}
 			fmt.Println()
 
