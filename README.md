@@ -47,6 +47,71 @@ graphfs scan --output graph.json
 
 **Note**: The SPARQL query endpoint and GraphQL features are coming in Phase 2.
 
+## 🔧 Shell Completion
+
+GraphFS supports tab completion for Bash, Zsh, and Fish shells to improve CLI usability with intelligent suggestions for commands, flags, module paths, layers, and more.
+
+**IMPORTANT**: Use the completion script that matches your shell!
+- Check your shell: `echo $SHELL`
+- Zsh users (macOS default): use `graphfs completion zsh`
+- Bash users: use `graphfs completion bash`
+- Fish users: use `graphfs completion fish`
+
+### Bash
+
+```bash
+# Load completions for current session
+source <(graphfs completion bash)
+
+# Install completions permanently
+graphfs completion bash > ~/.graphfs-completion.bash
+echo "source ~/.graphfs-completion.bash" >> ~/.bashrc
+```
+
+### Zsh
+
+```bash
+# Load completions for current session
+source <(graphfs completion zsh)
+
+# Install completions permanently
+mkdir -p ~/.zsh/completion
+graphfs completion zsh > ~/.zsh/completion/_graphfs
+echo 'fpath=(~/.zsh/completion $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+```
+
+### Fish
+
+```bash
+# Load completions for current session
+graphfs completion fish | source
+
+# Install completions permanently
+mkdir -p ~/.config/fish/completions
+graphfs completion fish > ~/.config/fish/completions/graphfs.fish
+```
+
+### Dynamic Completions
+
+Shell completions include context-aware suggestions:
+- **Module paths**: Complete module file paths from your codebase graph
+- **Layers**: Complete layer names (e.g., `api`, `service`, `data`)
+- **Tags**: Complete tag values from module metadata
+- **Output formats**: Complete format options (`table`, `json`, `csv`, `dot`, `mermaid`, `turtle`)
+- **Categories**: Complete example query categories (`dependencies`, `security`, `analysis`, etc.)
+
+```bash
+# Example: Tab completion for impact command
+graphfs impact ser<TAB>
+# Completes to available module paths starting with "ser"
+graphfs impact services/auth.go
+
+# Example: Tab completion for format flag
+graphfs viz --format <TAB>
+# Shows: table  json  csv  dot  mermaid  turtle
+```
+
 ## 📚 Core Concepts
 
 ### LinkedDoc+RDF Format
