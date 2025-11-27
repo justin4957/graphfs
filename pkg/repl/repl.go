@@ -51,6 +51,8 @@ type Config struct {
 	HistoryFile string
 	Prompt      string
 	NoColor     bool
+	PageSize    int  // Number of results per page (default: 20)
+	Paginate    bool // Enable interactive pagination (default: true)
 }
 
 // REPL is the interactive Read-Eval-Print Loop
@@ -72,7 +74,13 @@ func New(executor *query.Executor, g *graph.Graph, config *Config) (*REPL, error
 			HistoryFile: filepath.Join(os.TempDir(), ".graphfs_history"),
 			Prompt:      "graphfs> ",
 			NoColor:     false,
+			PageSize:    20,
+			Paginate:    true,
 		}
+	}
+	// Set defaults for pagination if not specified
+	if config.PageSize <= 0 {
+		config.PageSize = 20
 	}
 
 	// Configure readline
@@ -222,17 +230,126 @@ func (r *REPL) executeQuery(queryStr string) {
 		return
 	}
 
-	// Format and display results
-	if err := r.formatResult(result); err != nil {
-		r.printError(fmt.Sprintf("Format error: %v", err))
+	// Check if we should paginate
+	if r.config.Paginate && result != nil && len(result.Bindings) > r.config.PageSize {
+		r.displayPaginatedResults(result, duration)
+	} else {
+		// Format and display results normally
+		if err := r.formatResult(result); err != nil {
+			r.printError(fmt.Sprintf("Format error: %v", err))
+			return
+		}
+
+		// Print execution time and result count
+		r.printInfo(fmt.Sprintf("Query executed in %v", duration))
+		if result != nil && result.Bindings != nil {
+			r.printInfo(fmt.Sprintf("Returned %d results", len(result.Bindings)))
+		}
+	}
+}
+
+// displayPaginatedResults displays results with interactive pagination
+func (r *REPL) displayPaginatedResults(result *query.QueryResult, duration time.Duration) {
+	if result == nil || len(result.Bindings) == 0 {
+		r.printInfo("No results")
 		return
 	}
 
-	// Print execution time and result count
-	r.printInfo(fmt.Sprintf("Query executed in %v", duration))
-	if result != nil && result.Bindings != nil {
-		r.printInfo(fmt.Sprintf("Returned %d results", len(result.Bindings)))
+	totalResults := len(result.Bindings)
+	pageSize := r.config.PageSize
+	totalPages := (totalResults + pageSize - 1) / pageSize
+	currentPage := 0
+
+	for {
+		start := currentPage * pageSize
+		end := start + pageSize
+		if end > totalResults {
+			end = totalResults
+		}
+
+		// Create a page result for formatting
+		pageResult := &query.QueryResult{
+			Variables: result.Variables,
+			Bindings:  result.Bindings[start:end],
+			Count:     end - start,
+		}
+
+		// Clear screen and display current page
+		fmt.Print("\033[H\033[2J")
+		if err := r.formatResult(pageResult); err != nil {
+			r.printError(fmt.Sprintf("Format error: %v", err))
+			return
+		}
+
+		// Print pagination info
+		fmt.Println()
+		r.printInfo(fmt.Sprintf("Results %d-%d of %d (Page %d/%d)", start+1, end, totalResults, currentPage+1, totalPages))
+		r.printInfo(fmt.Sprintf("Query executed in %v", duration))
+
+		// If only one page, no need for navigation
+		if totalPages == 1 {
+			return
+		}
+
+		// Print navigation help
+		if r.config.NoColor {
+			fmt.Print("\n[n]ext  [p]rev  [f]irst  [l]ast  [g]oto  [q]uit: ")
+		} else {
+			cyan := color.New(color.FgCyan)
+			cyan.Print("\n[n]ext  [p]rev  [f]irst  [l]ast  [g]oto  [q]uit: ")
+		}
+
+		// Read user input
+		line, err := r.rl.Readline()
+		if err != nil {
+			return
+		}
+
+		input := strings.TrimSpace(strings.ToLower(line))
+		switch input {
+		case "n", "next", "":
+			if currentPage < totalPages-1 {
+				currentPage++
+			}
+		case "p", "prev", "previous":
+			if currentPage > 0 {
+				currentPage--
+			}
+		case "f", "first":
+			currentPage = 0
+		case "l", "last":
+			currentPage = totalPages - 1
+		case "q", "quit", "exit":
+			return
+		default:
+			// Check if it starts with 'g' for goto
+			if strings.HasPrefix(input, "g") {
+				pageStr := strings.TrimPrefix(input, "g")
+				pageStr = strings.TrimSpace(pageStr)
+				if pageNum, parseErr := parsePageNumber(pageStr); parseErr == nil {
+					if pageNum >= 1 && pageNum <= totalPages {
+						currentPage = pageNum - 1
+					}
+				}
+			} else if pageNum, parseErr := parsePageNumber(input); parseErr == nil {
+				// Direct page number input
+				if pageNum >= 1 && pageNum <= totalPages {
+					currentPage = pageNum - 1
+				}
+			}
+		}
 	}
+}
+
+// parsePageNumber attempts to parse a page number from a string
+func parsePageNumber(s string) (int, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty string")
+	}
+	var pageNum int
+	_, err := fmt.Sscanf(s, "%d", &pageNum)
+	return pageNum, err
 }
 
 // setupAutocomplete configures tab completion
