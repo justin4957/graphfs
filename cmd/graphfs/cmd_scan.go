@@ -49,15 +49,19 @@ import (
 )
 
 var (
-	scanInclude   []string
-	scanExclude   []string
-	scanValidate  bool
-	scanStats     bool
-	scanOutput    string
-	scanNoCache   bool
-	scanWorkers   int
-	scanStrict    bool
-	scanMaxErrors int
+	scanInclude        []string
+	scanExclude        []string
+	scanValidate       bool
+	scanStats          bool
+	scanOutput         string
+	scanNoCache        bool
+	scanWorkers        int
+	scanStrict         bool
+	scanMaxErrors      int
+	scanSample         int
+	scanSampleStrategy string
+	scanChangedSince   string
+	scanFocus          []string
 )
 
 // scanCmd represents the scan command
@@ -68,6 +72,12 @@ var scanCmd = &cobra.Command{
 
 The scan command discovers all files with LinkedDoc metadata, parses them,
 and builds a queryable knowledge graph stored in .graphfs/store.db.
+
+Filtering & Sampling (for large codebases):
+  --sample N             Randomly sample N files for quick exploration
+  --sample-strategy      Sampling strategy (random, stratified, recent)
+  --changed-since <ref>  Only analyze files changed since git ref
+  --focus <pattern>      Focus on files matching pattern(s) (can be repeated)
 
 Error Handling:
   By default, GraphFS continues on errors and returns partial results.
@@ -82,7 +92,20 @@ Examples:
   graphfs scan --output graph.json       # Export graph to JSON
   graphfs scan --workers 4               # Use 4 parallel workers
   graphfs scan --strict                  # Abort on first error
-  graphfs scan --max-errors 10           # Stop after 10 errors`,
+  graphfs scan --max-errors 10           # Stop after 10 errors
+
+  # Sampling for quick exploration
+  graphfs scan --sample 100              # Random sample of 100 files
+  graphfs scan --sample 100 --sample-strategy stratified  # Stratified sample
+  graphfs scan --sample 50 --sample-strategy recent       # 50 most recent files
+
+  # Git-based filtering
+  graphfs scan --changed-since main      # Only files changed since main branch
+  graphfs scan --changed-since HEAD~10   # Files changed in last 10 commits
+
+  # Focus on specific subsystems
+  graphfs scan --focus "api/**/*.go"                   # Only API Go files
+  graphfs scan --focus "services/**" --focus "api/**"  # Multiple patterns`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runScan,
 }
@@ -97,6 +120,12 @@ func init() {
 	scanCmd.Flags().IntVarP(&scanWorkers, "workers", "w", 0, "Number of parallel workers (0 = NumCPU)")
 	scanCmd.Flags().BoolVar(&scanStrict, "strict", false, "Abort on first error (for CI/CD)")
 	scanCmd.Flags().IntVar(&scanMaxErrors, "max-errors", 0, "Stop after N errors (0 = unlimited)")
+
+	// Filtering and sampling options
+	scanCmd.Flags().IntVar(&scanSample, "sample", 0, "Sample N files for quick exploration")
+	scanCmd.Flags().StringVar(&scanSampleStrategy, "sample-strategy", "random", "Sampling strategy (random, stratified, recent)")
+	scanCmd.Flags().StringVar(&scanChangedSince, "changed-since", "", "Only analyze files changed since git ref")
+	scanCmd.Flags().StringSliceVar(&scanFocus, "focus", nil, "Focus on files matching pattern(s)")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
@@ -159,6 +188,12 @@ func runScan(cmd *cobra.Command, args []string) error {
 		Validate:       scanValidate,
 		ReportProgress: verbose,
 		UseCache:       !scanNoCache, // Enable cache by default unless --no-cache is set
+
+		// Filtering and sampling options
+		SampleSize:     scanSample,
+		SampleStrategy: scanner.ParseSamplingStrategy(scanSampleStrategy),
+		ChangedSince:   scanChangedSince,
+		FocusPatterns:  scanFocus,
 	}
 
 	graphObj, err := builder.Build(absPath, buildOpts)
