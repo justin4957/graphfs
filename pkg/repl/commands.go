@@ -66,6 +66,10 @@ func (r *REPL) handleCommand(line string) error {
 		return r.cmdModules(args)
 	case ".predicates":
 		return r.cmdPredicates(args)
+	case ".paginate":
+		return r.cmdPaginate(args)
+	case ".pagesize":
+		return r.cmdPageSize(args)
 	case ".exit", ".quit":
 		return io.EOF
 	default:
@@ -88,6 +92,8 @@ Query Commands:
 REPL Commands:
   .help               Show this help message
   .format [fmt]       Change output format (table, json, csv)
+  .paginate [on|off]  Toggle interactive pagination for large results
+  .pagesize [N]       Set page size for pagination (default: 20)
   .load <file>        Load and execute query from file
   .save <file>        Save last query to file
   .history            Show query history
@@ -105,10 +111,21 @@ Query Features:
   - History: Use Up/Down arrows to navigate query history
   - Ctrl+R: Reverse search through history
   - Syntax highlighting: Color-coded SPARQL queries for better readability
+  - Interactive pagination: Navigate through large result sets page by page
+
+Pagination Controls (when enabled):
+  [n]ext     - Go to next page
+  [p]rev     - Go to previous page
+  [f]irst    - Go to first page
+  [l]ast     - Go to last page
+  [g]oto N   - Go to page N
+  [q]uit     - Exit pagination
 
 Examples:
   SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10
   .format json
+  .paginate on
+  .pagesize 50
   .load my-query.sparql
   .stats
 `
@@ -434,4 +451,56 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// cmdPaginate toggles interactive pagination
+func (r *REPL) cmdPaginate(args []string) error {
+	if len(args) == 0 {
+		status := "off"
+		if r.config.Paginate {
+			status = "on"
+		}
+		r.printInfo(fmt.Sprintf("Pagination: %s (page size: %d)", status, r.config.PageSize))
+		r.printInfo("Usage: .paginate [on|off]")
+		return nil
+	}
+
+	switch strings.ToLower(args[0]) {
+	case "on", "true", "1", "yes":
+		r.config.Paginate = true
+		r.printSuccess("Pagination enabled")
+	case "off", "false", "0", "no":
+		r.config.Paginate = false
+		r.printSuccess("Pagination disabled")
+	default:
+		return fmt.Errorf("invalid value: %s (use 'on' or 'off')", args[0])
+	}
+
+	return nil
+}
+
+// cmdPageSize sets the page size for pagination
+func (r *REPL) cmdPageSize(args []string) error {
+	if len(args) == 0 {
+		r.printInfo(fmt.Sprintf("Current page size: %d", r.config.PageSize))
+		r.printInfo("Usage: .pagesize <N>")
+		return nil
+	}
+
+	var size int
+	if _, err := fmt.Sscanf(args[0], "%d", &size); err != nil {
+		return fmt.Errorf("invalid page size: %s", args[0])
+	}
+
+	if size < 1 {
+		return fmt.Errorf("page size must be at least 1")
+	}
+
+	if size > 1000 {
+		return fmt.Errorf("page size too large (max: 1000)")
+	}
+
+	r.config.PageSize = size
+	r.printSuccess(fmt.Sprintf("Page size set to: %d", size))
+	return nil
 }
