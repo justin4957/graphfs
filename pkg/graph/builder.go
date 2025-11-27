@@ -68,6 +68,13 @@ type BuildOptions struct {
 	Validate       bool                // Validate graph after building
 	ReportProgress bool                // Report progress during build
 	UseCache       bool                // Enable persistent caching
+
+	// Filtering and sampling options
+	SampleSize     int                      // Sample N files (0 = no sampling)
+	SampleStrategy scanner.SamplingStrategy // Sampling strategy
+	SampleSeed     int64                    // Random seed for reproducible sampling
+	ChangedSince   string                   // Git ref to filter changed files
+	FocusPatterns  []string                 // File patterns to focus on
 }
 
 // NewBuilder creates a new graph builder
@@ -149,6 +156,13 @@ func (b *Builder) Build(rootPath string, opts BuildOptions) (*Graph, error) {
 		if file.HasLinkedDoc {
 			linkedDocFiles = append(linkedDocFiles, *file)
 		}
+	}
+
+	// Apply smart filtering and sampling
+	linkedDocFiles = b.applyFilters(linkedDocFiles, absRoot, opts)
+
+	if opts.ReportProgress && len(linkedDocFiles) != len(scanResult.Files) {
+		fmt.Printf("After filtering: %d files to process\n", len(linkedDocFiles))
 	}
 
 	// Process files in parallel
@@ -496,4 +510,64 @@ func (g *Graph) GetDependents(path string) []string {
 		return nil
 	}
 	return module.Dependents
+}
+
+// applyFilters applies smart filtering and sampling to the file list
+func (b *Builder) applyFilters(files []scanner.FileInfo, rootPath string, opts BuildOptions) []scanner.FileInfo {
+	if len(files) == 0 {
+		return files
+	}
+
+	// Extract file paths for filtering
+	filePaths := make([]string, len(files))
+	fileMap := make(map[string]scanner.FileInfo)
+	for i, file := range files {
+		filePaths[i] = file.Path
+		fileMap[file.Path] = file
+	}
+
+	// Apply git filter (--changed-since)
+	if opts.ChangedSince != "" {
+		gitFilter := scanner.NewGitFilter(rootPath)
+		if gitFilter.IsGitRepository() {
+			changedFiles, err := gitFilter.ChangedSince(opts.ChangedSince)
+			if err == nil {
+				// Create a set of changed files for quick lookup
+				changedSet := make(map[string]bool)
+				for _, f := range changedFiles {
+					changedSet[f] = true
+				}
+				// Filter to only changed files
+				var filteredPaths []string
+				for _, path := range filePaths {
+					if changedSet[path] {
+						filteredPaths = append(filteredPaths, path)
+					}
+				}
+				filePaths = filteredPaths
+			}
+		}
+	}
+
+	// Apply focus filter (--focus patterns)
+	if len(opts.FocusPatterns) > 0 {
+		focusFilter := scanner.NewFocusFilter(opts.FocusPatterns, rootPath)
+		filePaths = focusFilter.Match(filePaths)
+	}
+
+	// Apply sampling (--sample)
+	if opts.SampleSize > 0 && len(filePaths) > opts.SampleSize {
+		sampler := scanner.NewSampler(opts.SampleStrategy, opts.SampleSize, opts.SampleSeed)
+		filePaths = sampler.Sample(filePaths)
+	}
+
+	// Convert back to FileInfo slice
+	result := make([]scanner.FileInfo, 0, len(filePaths))
+	for _, path := range filePaths {
+		if file, ok := fileMap[path]; ok {
+			result = append(result, file)
+		}
+	}
+
+	return result
 }
