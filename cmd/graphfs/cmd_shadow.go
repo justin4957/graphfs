@@ -36,8 +36,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/justin4957/graphfs/pkg/cli"
@@ -65,6 +68,12 @@ var (
 	shadowKey    string
 	shadowValue  string
 	shadowAuthor string
+
+	// Shadow watch flags
+	shadowWatchPollInterval time.Duration
+	shadowWatchDebounce     time.Duration
+	shadowWatchUncommitted  bool
+	shadowWatchNoInitSync   bool
 )
 
 // shadowCmd represents the shadow command
@@ -86,20 +95,25 @@ This allows you to build a rich semantic graph of your codebase without modifyin
 the actual source files.
 
 Subcommands:
-  init      Initialize shadow file system
-  build     Generate shadow entries from LinkedDoc metadata
-  sync      Full sync (build + clean orphaned entries)
-  query     Query shadow entries by various criteria
-  show      Show shadow entry for a specific file
-  annotate  Add manual annotations to shadow entries
-  stats     Show shadow file system statistics
-  clean     Remove orphaned shadow entries
+  init           Initialize shadow file system
+  build          Generate shadow entries from LinkedDoc metadata
+  sync           Full sync (build + clean orphaned entries)
+  watch          Watch for git commits and sync automatically
+  install-hook   Install git post-commit hook
+  uninstall-hook Remove git post-commit hook
+  query          Query shadow entries by various criteria
+  show           Show shadow entry for a specific file
+  annotate       Add manual annotations to shadow entries
+  stats          Show shadow file system statistics
+  clean          Remove orphaned shadow entries
 
 Examples:
   graphfs shadow init                           # Initialize shadow file system
   graphfs shadow build                          # Build shadow entries from codebase
   graphfs shadow build --force                  # Force rebuild all entries
   graphfs shadow sync                           # Build and clean in one operation
+  graphfs shadow watch                          # Watch for git commits and auto-sync
+  graphfs shadow install-hook                   # Install post-commit git hook
   graphfs shadow query --language go            # Find all Go files
   graphfs shadow query --tags api,service       # Find files with specific tags
   graphfs shadow show pkg/shadow/shadow.go      # Show shadow entry for a file
@@ -244,11 +258,68 @@ Use this if the index becomes corrupted or out of sync.`,
 	RunE: runShadowRebuildIndex,
 }
 
+// shadowWatchCmd watches for git commits and syncs automatically
+var shadowWatchCmd = &cobra.Command{
+	Use:   "watch [path]",
+	Short: "Watch for git commits and sync automatically",
+	Long: `Start a background watcher that monitors git commits and automatically
+syncs the shadow file system when changes are detected.
+
+The watcher uses polling to detect new commits and performs incremental
+updates, only processing files that changed in each commit.
+
+Features:
+  - Polls git for new commits at a configurable interval
+  - Debounces rapid changes to avoid excessive syncing
+  - Performs incremental sync (only changed files)
+  - Optionally watches uncommitted changes
+  - Press Ctrl+C to stop watching
+
+Flags:
+  --poll-interval     How often to check for commits (default: 2s)
+  --debounce          Delay before sync after detecting changes (default: 500ms)
+  --watch-uncommitted Also watch for uncommitted file changes
+  --no-init-sync      Skip initial sync when starting`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runShadowWatch,
+}
+
+// shadowInstallHookCmd installs the git post-commit hook
+var shadowInstallHookCmd = &cobra.Command{
+	Use:   "install-hook [path]",
+	Short: "Install git post-commit hook",
+	Long: `Install a git post-commit hook that automatically syncs the shadow
+file system after each commit.
+
+This is an alternative to running 'graphfs shadow watch'. The hook
+runs graphfs in the background after commits complete.
+
+The hook is installed to .git/hooks/post-commit. If a hook already
+exists, the graphfs command is appended to it.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runShadowInstallHook,
+}
+
+// shadowUninstallHookCmd removes the git post-commit hook
+var shadowUninstallHookCmd = &cobra.Command{
+	Use:   "uninstall-hook [path]",
+	Short: "Remove git post-commit hook",
+	Long: `Remove the graphfs post-commit hook.
+
+If other commands exist in the hook file, only the graphfs lines are
+removed. If the hook file would be empty after removal, it is deleted.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runShadowUninstallHook,
+}
+
 func init() {
 	// Add subcommands
 	shadowCmd.AddCommand(shadowInitCmd)
 	shadowCmd.AddCommand(shadowBuildCmd)
 	shadowCmd.AddCommand(shadowSyncCmd)
+	shadowCmd.AddCommand(shadowWatchCmd)
+	shadowCmd.AddCommand(shadowInstallHookCmd)
+	shadowCmd.AddCommand(shadowUninstallHookCmd)
 	shadowCmd.AddCommand(shadowQueryCmd)
 	shadowCmd.AddCommand(shadowShowCmd)
 	shadowCmd.AddCommand(shadowAnnotateCmd)
@@ -285,6 +356,14 @@ func init() {
 	shadowAnnotateCmd.Flags().StringVar(&shadowAuthor, "author", "", "Annotation author")
 	_ = shadowAnnotateCmd.MarkFlagRequired("key")
 	_ = shadowAnnotateCmd.MarkFlagRequired("value")
+
+	// Watch flags
+	shadowWatchCmd.Flags().DurationVar(&shadowWatchPollInterval, "poll-interval", 2*time.Second, "How often to check for commits")
+	shadowWatchCmd.Flags().DurationVar(&shadowWatchDebounce, "debounce", 500*time.Millisecond, "Delay before sync after detecting changes")
+	shadowWatchCmd.Flags().BoolVar(&shadowWatchUncommitted, "watch-uncommitted", false, "Also watch for uncommitted file changes")
+	shadowWatchCmd.Flags().BoolVar(&shadowWatchNoInitSync, "no-init-sync", false, "Skip initial sync when starting")
+	shadowWatchCmd.Flags().BoolVar(&shadowForce, "force", false, "Force full sync instead of incremental")
+	shadowWatchCmd.Flags().IntVarP(&shadowWorkers, "workers", "w", 0, "Number of parallel workers")
 
 	// Register shadow command with root
 	rootCmd.AddCommand(shadowCmd)
@@ -898,6 +977,174 @@ func runShadowRebuildIndex(cmd *cobra.Command, args []string) error {
 
 	out.Success("Index rebuilt successfully")
 	out.KeyValue("Indexed Entries", stats.TotalEntries)
+
+	return nil
+}
+
+func runShadowWatch(cmd *cobra.Command, args []string) error {
+	out := cli.NewOutputFormatter(quiet, verbose, noColor)
+
+	targetPath := "."
+	if len(args) > 0 {
+		targetPath = args[0]
+	}
+
+	absPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Create and initialize shadow file system
+	shadowFS, err := shadow.NewShadowFS(absPath, shadow.DefaultConfig())
+	if err != nil {
+		return fmt.Errorf("failed to create shadow file system: %w", err)
+	}
+
+	if err := shadowFS.Initialize(); err != nil {
+		return fmt.Errorf("failed to initialize shadow file system: %w", err)
+	}
+
+	// Configure watch options
+	opts := shadow.GitWatchOptions{
+		PollInterval:     shadowWatchPollInterval,
+		Debounce:         shadowWatchDebounce,
+		Verbose:          verbose,
+		WatchHEAD:        true,
+		WatchUncommitted: shadowWatchUncommitted,
+		SyncOnStart:      !shadowWatchNoInitSync,
+		BuildOptions: shadow.BuildOptions{
+			ScanOptions: scanner.ScanOptions{
+				UseDefaults: true,
+				IgnoreFiles: []string{".gitignore", ".graphfsignore"},
+				Concurrent:  true,
+				Workers:     shadowWorkers,
+			},
+			MergeExisting:  !shadowForce,
+			ForceOverwrite: shadowForce,
+			ReportProgress: verbose,
+			Workers:        shadowWorkers,
+			SkipUnchanged:  !shadowForce,
+		},
+	}
+
+	// Set up callbacks
+	opts.OnCommit = func(commit string, files []string) {
+		shortCommit := commit
+		if len(commit) > 8 {
+			shortCommit = commit[:8]
+		}
+		out.Info("Detected commit %s (%d files changed)", shortCommit, len(files))
+	}
+
+	opts.OnSync = func(result *shadow.SyncResult) {
+		if result != nil && result.BuildResult != nil {
+			out.Success("Sync complete: %d new, %d updated, %d merged in %v",
+				result.BuildResult.NewEntries,
+				result.BuildResult.UpdatedEntries,
+				result.BuildResult.MergedEntries,
+				result.Duration.Round(time.Millisecond))
+		}
+	}
+
+	opts.OnError = func(err error) {
+		out.Error("Sync error: %v", err)
+	}
+
+	// Create watcher
+	watcher, err := shadow.NewGitWatcher(shadowFS, opts)
+	if err != nil {
+		return fmt.Errorf("failed to create git watcher: %w", err)
+	}
+
+	out.Info("Starting shadow file system watcher...")
+	out.Info("  Poll interval: %v", opts.PollInterval)
+	out.Info("  Debounce: %v", opts.Debounce)
+	out.Info("  Watch uncommitted: %v", opts.WatchUncommitted)
+	out.Println("")
+	out.Info("Press Ctrl+C to stop watching")
+	out.Println("")
+
+	// Start watcher
+	if err := watcher.Start(); err != nil {
+		return fmt.Errorf("failed to start watcher: %w", err)
+	}
+
+	// Wait for interrupt signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+
+	out.Println("")
+	out.Info("Stopping watcher...")
+
+	// Stop watcher
+	if err := watcher.Stop(); err != nil {
+		return fmt.Errorf("failed to stop watcher: %w", err)
+	}
+
+	// Print final statistics
+	stats := watcher.Stats()
+	out.Println("")
+	out.Success("Watcher stopped")
+	out.KeyValue("Running Time", time.Since(stats.StartTime).Round(time.Second))
+	out.KeyValue("Commits Detected", stats.CommitsDetected)
+	out.KeyValue("Syncs Performed", stats.SyncsPerformed)
+	out.KeyValue("Files Updated", stats.FilesUpdated)
+	out.KeyValue("Errors", stats.Errors)
+
+	return nil
+}
+
+func runShadowInstallHook(cmd *cobra.Command, args []string) error {
+	out := cli.NewOutputFormatter(quiet, verbose, noColor)
+
+	targetPath := "."
+	if len(args) > 0 {
+		targetPath = args[0]
+	}
+
+	absPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Get the path to graphfs executable
+	graphfsPath, err := os.Executable()
+	if err != nil {
+		// Fall back to just "graphfs" and hope it's in PATH
+		graphfsPath = "graphfs"
+	}
+
+	// Install hook
+	if err := shadow.InstallGitHook(absPath, graphfsPath); err != nil {
+		return fmt.Errorf("failed to install git hook: %w", err)
+	}
+
+	out.Success("Git post-commit hook installed")
+	out.Info("Shadow file system will be synced automatically after each commit")
+
+	return nil
+}
+
+func runShadowUninstallHook(cmd *cobra.Command, args []string) error {
+	out := cli.NewOutputFormatter(quiet, verbose, noColor)
+
+	targetPath := "."
+	if len(args) > 0 {
+		targetPath = args[0]
+	}
+
+	absPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Uninstall hook
+	if err := shadow.UninstallGitHook(absPath); err != nil {
+		return fmt.Errorf("failed to uninstall git hook: %w", err)
+	}
+
+	out.Success("Git post-commit hook removed")
 
 	return nil
 }
