@@ -10,9 +10,10 @@ Welcome to GraphFS! This guide will help you get started with using GraphFS to b
 4. [Writing SPARQL Queries](#writing-sparql-queries)
 5. [HTTP Server and API](#http-server-and-api)
 6. [GraphQL Schema Generation](#graphql-schema-generation)
-7. [Common Use Cases](#common-use-cases)
-8. [Troubleshooting](#troubleshooting)
-9. [FAQ](#faq)
+7. [Shadow File System](#shadow-file-system)
+8. [Common Use Cases](#common-use-cases)
+9. [Troubleshooting](#troubleshooting)
+10. [FAQ](#faq)
 
 ## Installation
 
@@ -1163,6 +1164,322 @@ Build real-time dashboards showing codebase metrics, dependencies, and module re
 - Queries are executed against the in-memory graph for fast response times
 - For large codebases (1000+ modules), consider filtering results with `first` parameter
 - Cursor-based pagination enables efficient traversal of large result sets
+
+## Shadow File System
+
+The shadow file system provides a non-invasive way to store graph metadata separately from your source code. Instead of embedding metadata in source files, you can maintain a parallel directory structure that mirrors your codebase.
+
+### Overview
+
+The shadow file system:
+- Creates a `.graphfs/shadow/` directory that mirrors your source tree
+- Stores semantic metadata (RDF triples, annotations, concepts) in JSON files
+- Preserves manual annotations across automatic rebuilds
+- Provides fast indexed queries by language, layer, tags, and concepts
+- Never modifies your actual source code
+
+### Initializing the Shadow File System
+
+```bash
+# Initialize the shadow file system
+graphfs shadow init
+
+# This creates:
+# - .graphfs/shadow/ - Directory for shadow files
+# - .graphfs/shadow/index.json - Index for fast lookups
+```
+
+### Building Shadow Entries
+
+Generate shadow entries from existing LinkedDoc metadata:
+
+```bash
+# Build shadow entries from scanned files
+graphfs shadow build
+
+# Force rebuild all entries (overwrites existing)
+graphfs shadow build --force
+
+# Build without merging with existing entries
+graphfs shadow build --no-merge
+
+# Build without including raw RDF triples
+graphfs shadow build --no-triples
+
+# Use multiple workers for faster processing
+graphfs shadow build --workers 8
+```
+
+### Syncing the Shadow File System
+
+Keep the shadow file system in sync with your codebase:
+
+```bash
+# Full sync: build new entries and remove orphaned ones
+graphfs shadow sync
+
+# Sync without cleaning orphaned entries
+graphfs shadow sync --skip-clean
+```
+
+### Querying Shadow Entries
+
+Query shadow entries using various filters:
+
+```bash
+# Find all Go files
+graphfs shadow query --language go
+
+# Find all service layer modules
+graphfs shadow query --layer service
+
+# Find files with specific tags
+graphfs shadow query --tags api,authentication
+
+# Find files with specific concepts
+graphfs shadow query --concepts "user-management"
+
+# Output as JSON
+graphfs shadow query --language go --output json
+
+# Output only file paths
+graphfs shadow query --layer api --output paths
+```
+
+### Viewing Shadow Entries
+
+View the complete shadow entry for a specific file:
+
+```bash
+# Show shadow entry for a file
+graphfs shadow show pkg/api/handler.go
+
+# Output as JSON
+graphfs shadow show pkg/api/handler.go --output json
+```
+
+**Example output:**
+```
+Shadow Entry: pkg/api/handler.go
+================================
+
+Version: 1.0
+Source: auto
+Created: 2024-01-15T10:30:00Z
+Updated: 2024-01-15T14:45:00Z
+Source Hash: a1b2c3d4e5f6...
+
+Module Information
+==================
+URI: <#pkg/api/handler.go>
+Name: pkg/api/handler.go
+Description: HTTP request handlers for API endpoints
+Language: go
+Layer: api
+Tags: http, api, handlers
+
+Dependencies (3)
+================
+  - linksTo -> pkg/services/auth.go
+  - linksTo -> pkg/services/user.go
+  - linksTo -> pkg/utils/response.go
+
+Exports (5)
+===========
+  - HandleLogin
+  - HandleLogout
+  - HandleRegister
+  - HandleGetUser
+  - HandleUpdateUser
+```
+
+### Adding Manual Annotations
+
+Add custom annotations that persist across rebuilds:
+
+```bash
+# Add a simple annotation
+graphfs shadow annotate pkg/api/handler.go --key "reviewed" --value "true"
+
+# Add with author information
+graphfs shadow annotate pkg/api/handler.go --key "owner" --value "team-backend" --author "john"
+
+# Mark security-sensitive code
+graphfs shadow annotate pkg/crypto/encrypt.go --key "security-review" --value "required"
+```
+
+Annotations are preserved when you rebuild the shadow file system, making them ideal for:
+- Code review status
+- Team ownership
+- Security classifications
+- Technical debt tracking
+- Custom categorizations
+
+### Viewing Statistics
+
+Get an overview of your shadow file system:
+
+```bash
+graphfs shadow stats
+```
+
+**Example output:**
+```
+Shadow File System Statistics
+=============================
+
+Total Entries: 156
+Total Triples: 1247
+
+Entries by Source
+=================
+Auto-generated: 142
+Manual: 8
+Mixed: 6
+
+Entries by Language
+===================
+| Language   | Count |
+|------------|-------|
+| go         | 143   |
+| typescript | 13    |
+
+Entries by Layer
+================
+| Layer       | Count |
+|-------------|-------|
+| api         | 34    |
+| service     | 56    |
+| data        | 54    |
+| application | 12    |
+
+Top Tags
+========
+| Tag            | Count |
+|----------------|-------|
+| api            | 45    |
+| authentication | 23    |
+| database       | 31    |
+```
+
+### Cleaning Orphaned Entries
+
+Remove shadow entries for files that no longer exist:
+
+```bash
+graphfs shadow clean
+```
+
+### Rebuilding the Index
+
+If the index becomes corrupted or out of sync:
+
+```bash
+graphfs shadow rebuild-index
+```
+
+### Shadow Entry Structure
+
+Each shadow file (`.shadow.json`) contains:
+
+```json
+{
+  "version": "1.0",
+  "source_path": "pkg/api/handler.go",
+  "source_hash": "a1b2c3d4e5f6...",
+  "source": "auto",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T14:45:00Z",
+  "module": {
+    "uri": "<#pkg/api/handler.go>",
+    "name": "pkg/api/handler.go",
+    "description": "HTTP request handlers",
+    "language": "go",
+    "layer": "api",
+    "tags": ["http", "api", "handlers"]
+  },
+  "dependencies": [
+    {"type": "linksTo", "target": "pkg/services/auth.go", "source": "auto"}
+  ],
+  "exports": ["HandleLogin", "HandleLogout"],
+  "triples": [
+    {
+      "subject": "<#pkg/api/handler.go>",
+      "predicate": "code:description",
+      "object": "HTTP request handlers",
+      "source": "auto"
+    }
+  ],
+  "annotations": [
+    {
+      "key": "reviewed",
+      "value": true,
+      "author": "john",
+      "created_at": "2024-01-16T09:00:00Z"
+    }
+  ],
+  "concepts": ["request-handling", "authentication"],
+  "properties": {}
+}
+```
+
+### Use Cases
+
+#### Non-Invasive Code Documentation
+When you can't or don't want to modify source files, use the shadow file system to maintain documentation separately:
+
+```bash
+# Build shadow from existing LinkedDoc
+graphfs shadow build
+
+# Add additional context via annotations
+graphfs shadow annotate legacy/old_module.go --key "migration-status" --value "planned"
+```
+
+#### Team Collaboration
+Different team members can add annotations without code conflicts:
+
+```bash
+# Developer adds ownership
+graphfs shadow annotate pkg/api/users.go --key "owner" --value "team-users" --author "alice"
+
+# Security team adds review status
+graphfs shadow annotate pkg/api/users.go --key "security-review" --value "passed" --author "bob"
+```
+
+#### AI-Assisted Development
+Generate rich metadata for AI tools without modifying source:
+
+```bash
+# Build comprehensive shadow entries
+graphfs shadow build
+
+# Query for context
+graphfs shadow query --concepts "authentication" --output json > auth-context.json
+```
+
+#### Architecture Analysis
+Query the shadow index for quick architectural insights:
+
+```bash
+# Find all service-layer modules
+graphfs shadow query --layer service --output paths
+
+# Find modules with specific tags
+graphfs shadow query --tags deprecated --output json
+```
+
+### Best Practices
+
+1. **Run `shadow sync` regularly**: Keep the shadow file system up-to-date with your codebase changes
+
+2. **Use annotations for non-code metadata**: Don't clutter source files with metadata that doesn't belong there
+
+3. **Leverage concepts for semantic grouping**: Add concepts to group related modules beyond file structure
+
+4. **Commit shadow files to version control**: The `.graphfs/shadow/` directory should be version-controlled for team collaboration
+
+5. **Use `--force` sparingly**: Only force rebuild when you want to reset all entries, as it removes manual annotations
 
 ## Common Use Cases
 
