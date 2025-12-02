@@ -193,40 +193,61 @@ func (p *Parser) normalizeBlankNodes(content string) string {
 
 	var blankNodeBuffer strings.Builder
 	depth := 0
+	inBlankNode := false
 
 	for _, line := range lines {
-		// Process character by character to track bracket depth
-		lineHasBracket := false
+		// Count bracket depth changes in this line
+		prevDepth := depth
 		for _, ch := range line {
 			if ch == '[' {
 				depth++
-				lineHasBracket = true
 			} else if ch == ']' {
 				depth--
 			}
 		}
 
-		if depth > 0 || lineHasBracket {
-			// We're inside a blank node or starting one
+		// Check if this line starts or continues a blank node
+		lineStartsBlankNode := prevDepth == 0 && depth > 0
+		lineEndsBlankNode := prevDepth > 0 && depth == 0
+		lineInMiddle := prevDepth > 0 && depth > 0
+
+		if lineStartsBlankNode {
+			// Starting a new multi-line blank node
+			inBlankNode = true
+			blankNodeBuffer.WriteString(line)
+			blankNodeBuffer.WriteString(" ")
+		} else if inBlankNode && (lineInMiddle || lineEndsBlankNode) {
+			// Continue accumulating blank node content
 			blankNodeBuffer.WriteString(line)
 			blankNodeBuffer.WriteString(" ")
 
-			// Check if blank node is now complete
-			if depth == 0 && lineHasBracket {
-				result.WriteString(blankNodeBuffer.String())
+			if lineEndsBlankNode {
+				// Blank node is complete, flush buffer
+				result.WriteString(strings.TrimSpace(blankNodeBuffer.String()))
 				result.WriteString("\n")
 				blankNodeBuffer.Reset()
+				inBlankNode = false
+			}
+		} else if prevDepth == 0 && depth == 0 {
+			// Regular line (check for inline blank nodes that start and end on same line)
+			if strings.Contains(line, "[") && strings.Contains(line, "]") {
+				// Inline blank node - already on one line
+				result.WriteString(line)
+				result.WriteString("\n")
+			} else {
+				result.WriteString(line)
+				result.WriteString("\n")
 			}
 		} else {
-			// Regular line
+			// Shouldn't reach here in well-formed RDF
 			result.WriteString(line)
 			result.WriteString("\n")
 		}
 	}
 
-	// Add any remaining blank node content (shouldn't happen with well-formed RDF)
+	// Add any remaining blank node content (malformed RDF)
 	if blankNodeBuffer.Len() > 0 {
-		result.WriteString(blankNodeBuffer.String())
+		result.WriteString(strings.TrimSpace(blankNodeBuffer.String()))
 		result.WriteString("\n")
 	}
 
@@ -372,15 +393,20 @@ func (p *Parser) smartSplit(s string, delim rune) []string {
 func (p *Parser) parseObject(objStr string) TripleObject {
 	objStr = strings.TrimSpace(objStr)
 
-	// URI reference: <uri> or prefix:name
+	// Blank node: [...] - check first to avoid false matches with prefixed URIs
+	if strings.HasPrefix(objStr, "[") {
+		triples, err := p.parseBlankNode(objStr)
+		if err != nil {
+			// Fall back to literal if parsing fails
+			return NewLiteral(objStr)
+		}
+		return NewBlankNode(triples)
+	}
+
+	// URI reference: <uri>
 	if strings.HasPrefix(objStr, "<") && strings.HasSuffix(objStr, ">") {
 		uri := objStr[1 : len(objStr)-1]
 		return NewURI(uri)
-	}
-
-	// Prefixed URI
-	if strings.Contains(objStr, ":") && !strings.HasPrefix(objStr, "\"") {
-		return NewURI(p.expandPrefix(objStr))
 	}
 
 	// Literal string: "value"
@@ -389,14 +415,9 @@ func (p *Parser) parseObject(objStr string) TripleObject {
 		return NewLiteral(literal)
 	}
 
-	// Blank node: [...]
-	if strings.HasPrefix(objStr, "[") {
-		triples, err := p.parseBlankNode(objStr)
-		if err != nil {
-			// Fall back to literal if parsing fails
-			return NewLiteral(objStr)
-		}
-		return NewBlankNode(triples)
+	// Prefixed URI (prefix:name pattern, not inside quotes)
+	if strings.Contains(objStr, ":") {
+		return NewURI(p.expandPrefix(objStr))
 	}
 
 	// Default: treat as literal
