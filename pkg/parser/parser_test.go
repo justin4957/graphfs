@@ -335,12 +335,9 @@ func indexSubstring(s, substr string) int {
 	return -1
 }
 
-// TestBlankNodeParsing tests partial blank node support.
-// NOTE: Full W3C Turtle blank node parsing is not yet implemented.
-// See issue #72 for status and tracking.
+// TestBlankNodeParsing tests W3C Turtle blank node syntax support.
+// Addresses issue #72: Fix RDF parser to support Turtle blank node syntax.
 func TestBlankNodeParsing(t *testing.T) {
-	t.Skip("Blank node parsing is a work in progress. See issue #72.")
-
 	tests := []struct {
 		name        string
 		content     string
@@ -348,23 +345,31 @@ func TestBlankNodeParsing(t *testing.T) {
 		checkFn     func(*testing.T, []Triple)
 	}{
 		{
-			name: "simple blank node inline - TODO",
+			name: "simple blank node inline",
 			content: `/*
 <!-- LinkedDoc RDF -->
 @prefix code: <https://schema.codedoc.org/> .
 <#test.go> code:linksTo [ code:name "auth" ; code:path "../auth.go" ] .
 <!-- End LinkedDoc RDF -->
 */`,
-			wantTriples: 3, // 1 for linksTo pointing to blank node, 2 for blank node properties
+			wantTriples: 1, // 1 triple with BlankNodeObject containing 2 inner triples
 			checkFn: func(t *testing.T, triples []Triple) {
+				if len(triples) == 0 {
+					t.Fatal("Expected at least one triple")
+				}
 				// Blank node should be parsed as BlankNodeObject
-				if _, ok := triples[0].Object.(*BlankNodeObject); !ok {
+				bn, ok := triples[0].Object.(BlankNodeObject)
+				if !ok {
 					t.Errorf("First triple object should be blank node, got %T", triples[0].Object)
+					return
+				}
+				if len(bn.Triples) != 2 {
+					t.Errorf("Blank node should have 2 inner triples, got %d", len(bn.Triples))
 				}
 			},
 		},
 		{
-			name: "multi-line blank node - TODO",
+			name: "multi-line blank node",
 			content: `/*
 <!-- LinkedDoc RDF -->
 @prefix code: <https://schema.codedoc.org/> .
@@ -375,17 +380,107 @@ func TestBlankNodeParsing(t *testing.T) {
 ] .
 <!-- End LinkedDoc RDF -->
 */`,
-			wantTriples: 4, // 1 for linksTo + 3 properties in blank node
+			wantTriples: 1, // 1 triple with BlankNodeObject containing 3 inner triples
 			checkFn: func(t *testing.T, triples []Triple) {
+				if len(triples) == 0 {
+					t.Fatal("Expected at least one triple")
+				}
 				// Blank node should contain 3 property triples
-				bn, ok := triples[0].Object.(*BlankNodeObject)
+				bn, ok := triples[0].Object.(BlankNodeObject)
 				if !ok {
 					t.Errorf("Expected blank node object, got %T", triples[0].Object)
 					return
 				}
-
 				if len(bn.Triples) != 3 {
 					t.Errorf("Blank node should have 3 triples, got %d", len(bn.Triples))
+				}
+				// Verify predicates
+				predicates := make(map[string]bool)
+				for _, inner := range bn.Triples {
+					predicates[inner.Predicate] = true
+				}
+				expectedPredicates := []string{
+					"https://schema.codedoc.org/name",
+					"https://schema.codedoc.org/path",
+					"https://schema.codedoc.org/relationship",
+				}
+				for _, pred := range expectedPredicates {
+					if !predicates[pred] {
+						t.Errorf("Missing expected predicate: %s", pred)
+					}
+				}
+			},
+		},
+		{
+			name: "nested blank nodes",
+			content: `/*
+<!-- LinkedDoc RDF -->
+@prefix code: <https://schema.codedoc.org/> .
+<#test.go> code:dependency [
+    code:module [ code:name "auth" ; code:version "1.0" ] ;
+    code:type "direct"
+] .
+<!-- End LinkedDoc RDF -->
+*/`,
+			wantTriples: 1, // 1 triple with nested BlankNodeObject
+			checkFn: func(t *testing.T, triples []Triple) {
+				if len(triples) == 0 {
+					t.Fatal("Expected at least one triple")
+				}
+				// Outer blank node
+				outerBn, ok := triples[0].Object.(BlankNodeObject)
+				if !ok {
+					t.Errorf("Expected blank node object, got %T", triples[0].Object)
+					return
+				}
+				if len(outerBn.Triples) != 2 {
+					t.Errorf("Outer blank node should have 2 triples, got %d", len(outerBn.Triples))
+				}
+				// Find the nested blank node (module property)
+				var nestedBn *BlankNodeObject
+				for _, inner := range outerBn.Triples {
+					if bn, ok := inner.Object.(BlankNodeObject); ok {
+						nestedBn = &bn
+						break
+					}
+				}
+				if nestedBn == nil {
+					t.Error("Expected nested blank node for code:module")
+					return
+				}
+				if len(nestedBn.Triples) != 2 {
+					t.Errorf("Nested blank node should have 2 triples, got %d", len(nestedBn.Triples))
+				}
+			},
+		},
+		{
+			name: "blank node with URI object",
+			content: `/*
+<!-- LinkedDoc RDF -->
+@prefix code: <https://schema.codedoc.org/> .
+<#test.go> code:linksTo [ code:target <../auth.go> ; code:type "import" ] .
+<!-- End LinkedDoc RDF -->
+*/`,
+			wantTriples: 1,
+			checkFn: func(t *testing.T, triples []Triple) {
+				if len(triples) == 0 {
+					t.Fatal("Expected at least one triple")
+				}
+				bn, ok := triples[0].Object.(BlankNodeObject)
+				if !ok {
+					t.Errorf("Expected blank node object, got %T", triples[0].Object)
+					return
+				}
+				// Should have a URI object for target
+				hasURIObject := false
+				for _, inner := range bn.Triples {
+					if inner.Object.Type() == "uri" {
+						hasURIObject = true
+						break
+					}
+				}
+				if !hasURIObject {
+					t.Error("Expected at least one URI object in blank node")
 				}
 			},
 		},
